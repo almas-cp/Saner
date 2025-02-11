@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "scheme": "saner",
+    "plugins": [
+      "expo-router"
+    ],
+    "name": "Saner",
+    "slug": "Saner",
+    "newArchEnabled": true
+  }
+}
