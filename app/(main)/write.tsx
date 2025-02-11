@@ -1,58 +1,38 @@
-import { View, StyleSheet, Animated, Pressable } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { Title, Subheading } from 'react-native-paper';
+import { useTheme } from '../../src/contexts/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useState, useRef } from 'react';
 
 export default function Write() {
-  const theme = useTheme();
-  const [isRecording, setIsRecording] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    setIsRecording(true);
-    Animated.spring(scaleAnim, {
-      toValue: 0.9,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    setIsRecording(false);
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
-  };
+  const { colors } = useTheme();
 
   return (
-    <View style={styles.container}>
-      <Text variant="headlineMedium" style={styles.title}>Voice Assistant 🪄</Text>
-      <View style={styles.buttonContainer}>
-        <Pressable
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
+    <View style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
+      <Title style={[styles.title, { color: colors.TEXT.PRIMARY }]}>
+        Voice Assistant ✨
+      </Title>
+
+      <View style={styles.content}>
+        <Pressable 
           style={({ pressed }) => [
-            styles.buttonWrapper,
-            pressed && styles.buttonPressed
+            styles.micButton,
+            { 
+              backgroundColor: colors.TAB_BAR.ACTIVE,
+              opacity: pressed ? 0.9 : 1,
+              transform: [{ scale: pressed ? 0.98 : 1 }],
+            }
           ]}
         >
-          <Animated.View
-            style={[
-              styles.button,
-              { transform: [{ scale: scaleAnim }] },
-              { backgroundColor: theme.colors.primary }
-            ]}
-          >
-            <MaterialCommunityIcons
-              name={isRecording ? "microphone" : "microphone-outline"}
-              size={48}
-              color="#fff"
-            />
-          </Animated.View>
+          <MaterialCommunityIcons 
+            name="microphone" 
+            size={32} 
+            color={colors.BACKGROUND}
+          />
         </Pressable>
-        <Text variant="titleMedium" style={styles.helpText}>
-          {isRecording ? "Listening..." : "Hold to speak"}
-        </Text>
+
+        <Subheading style={[styles.hint, { color: colors.TEXT.SECONDARY }]}>
+          Hold to speak
+        </Subheading>
       </View>
     </View>
   );
@@ -62,42 +42,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#fff',
   },
   title: {
+    marginBottom: 24,
     textAlign: 'center',
-    marginBottom: 32,
   },
-  buttonContainer: {
+  content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
   },
-  buttonWrapper: {
-    borderRadius: 100,
-    padding: 24,
-  },
-  buttonPressed: {
-    opacity: 0.8,
-  },
-  button: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+  micButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 4,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  helpText: {
-    color: '#666',
-    marginTop: 8,
+  hint: {
+    marginTop: 16,
   },
 }); 
