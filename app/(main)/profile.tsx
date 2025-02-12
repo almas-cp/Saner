@@ -1,4 +1,4 @@
-import { View, StyleSheet, Modal, ScrollView, SafeAreaView, Animated, Platform, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, SafeAreaView, Animated, Platform, Pressable, Modal } from 'react-native';
 import { Switch, List, Avatar, Text, IconButton, TextInput, Button, useTheme as usePaperTheme, Card, ActivityIndicator, Surface } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -314,17 +314,11 @@ const EditProfileModal = ({ visible, onClose, profile, onSave, colors }: {
   return (
     <Modal
       visible={visible}
-      transparent
-      animationType="slide"
+      transparent={true}
       onRequestClose={onClose}
     >
-      <SafeAreaView style={[styles.modalOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
-        <MotiView
-          from={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'timing', duration: 300 }}
-          style={[styles.modalContent, { backgroundColor: colors.SURFACE }]}
-        >
+      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
+        <View style={[styles.modalContent, { backgroundColor: colors.SURFACE }]}>
           <View style={styles.modalHeader}>
             <Text variant="titleLarge" style={{ color: colors.TEXT.PRIMARY }}>
               Edit Profile
@@ -355,19 +349,16 @@ const EditProfileModal = ({ visible, onClose, profile, onSave, colors }: {
             label="Name"
             value={editedData.name || ''}
             onChangeText={(text) => setEditedData(prev => ({ ...prev, name: text }))}
-            style={[styles.input, { backgroundColor: 'transparent' }]}
             mode="outlined"
-            theme={paperTheme}
+            style={styles.input}
           />
 
           <TextInput
             label="Username"
             value={editedData.username || ''}
             onChangeText={(text) => setEditedData(prev => ({ ...prev, username: text }))}
-            style={[styles.input, { backgroundColor: 'transparent' }]}
             mode="outlined"
-            theme={paperTheme}
-            left={<TextInput.Affix text="@" />}
+            style={styles.input}
           />
 
           <Button 
@@ -377,8 +368,8 @@ const EditProfileModal = ({ visible, onClose, profile, onSave, colors }: {
           >
             Save Changes
           </Button>
-        </MotiView>
-      </SafeAreaView>
+        </View>
+      </View>
     </Modal>
   );
 };
@@ -386,7 +377,6 @@ const EditProfileModal = ({ visible, onClose, profile, onSave, colors }: {
 export default function Profile() {
   const { theme, toggleTheme, colors } = useTheme();
   const router = useRouter();
-  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isAuthVisible, setIsAuthVisible] = useState(false);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -477,7 +467,7 @@ export default function Profile() {
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.BACKGROUND, justifyContent: 'center', alignItems: 'center' }]}>
-        <Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY }}>Loading...</Text>
+        <ActivityIndicator size="large" color={colors.TAB_BAR.ACTIVE} />
       </View>
     );
   }
@@ -485,12 +475,6 @@ export default function Profile() {
   if (!profile) {
     return (
       <View style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
-        <View style={styles.header}>
-          <Text variant="headlineMedium" style={{ color: colors.TEXT.PRIMARY }}>
-            Profile
-          </Text>
-        </View>
-
         <View style={styles.emptyStateContainer}>
           <MaterialCommunityIcons 
             name="account-circle-outline" 
@@ -548,10 +532,10 @@ export default function Profile() {
             icon="pencil"
             size={24}
             iconColor={colors.TAB_BAR.ACTIVE}
-            onPress={() => setIsEditModalVisible(true)}
+            onPress={() => router.push('/(main)/profile/edit')}
             style={styles.editButton}
           />
-        </View>
+    </View>
 
         <Avatar.Image 
           size={80} 
@@ -627,15 +611,11 @@ export default function Profile() {
         </List.Section>
       </MotiView>
 
-      {profile && (
-        <EditProfileModal
-          visible={isEditModalVisible}
-          onClose={() => setIsEditModalVisible(false)}
-          profile={profile}
-          onSave={handleProfileUpdate}
-          colors={colors}
-        />
-      )}
+      <AuthModal
+        visible={isAuthVisible}
+        onClose={() => setIsAuthVisible(false)}
+        colors={colors}
+      />
     </ScrollView>
   );
 }
@@ -792,14 +772,43 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 8,
+    padding: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  avatarEdit: {
+    alignSelf: 'center',
+    marginBottom: 16,
+    position: 'relative',
+  },
+  avatarEditButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContainer: {
-    width: '100%',
-    maxWidth: 400,
-    padding: 16,
+  input: {
+    marginBottom: 16,
+    backgroundColor: 'transparent',
+  },
+  saveButton: {
+    marginTop: 8,
   },
   emptyStateContainer: {
     flex: 1,

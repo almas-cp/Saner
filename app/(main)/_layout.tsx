@@ -8,7 +8,7 @@ import { View } from 'react-native';
 const TAB_ICONS = {
   discover: 'compass',
   breath: 'weather-windy',
-  write: 'pencil-plus',
+  write: 'pencil',
   chat: 'chat',
   profile: 'account',
 } as const;
@@ -67,7 +67,6 @@ export default function MainLayout() {
                 color={color} 
               />
             ),
-            tabBarLabel: 'Write 🪄',
           }}
         />
         <Tabs.Screen
@@ -94,6 +93,14 @@ export default function MainLayout() {
                 color={color} 
               />
             ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile/edit"
+          options={{
+            href: null,
+            headerShown: true,
+            title: 'Edit Profile',
           }}
         />
       </Tabs>
