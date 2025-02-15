@@ -103,6 +103,21 @@ export default function MainLayout() {
             title: 'Edit Profile',
           }}
         />
+        <Tabs.Screen
+          name="discover/create"
+          options={{
+            href: null,
+            headerShown: true,
+            title: 'Create Post',
+          }}
+        />
+        <Tabs.Screen
+          name="discover/[id]"
+          options={{
+            href: null,
+            headerShown: true,
+          }}
+        />
       </Tabs>
     </View>
   );
