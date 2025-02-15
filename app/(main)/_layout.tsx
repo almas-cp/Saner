@@ -114,22 +114,13 @@ export default function MainLayout() {
             )
           ),
         }}>
-        <Tabs.Screen
-          name="index"
-          options={{
-            href: null,
-          }}
-        />
+        <Tabs.Screen name="index" options={{ href: null }} />
         <Tabs.Screen
           name="discover"
           options={{
             title: 'Discover',
             tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons 
-                name={TAB_ICONS.discover} 
-                size={size + 2} 
-                color={color} 
-              />
+              <MaterialCommunityIcons name={TAB_ICONS.discover} size={size + 2} color={color} />
             ),
           }}
         />
@@ -138,11 +129,7 @@ export default function MainLayout() {
           options={{
             title: 'Breath',
             tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons 
-                name={TAB_ICONS.breath} 
-                size={size + 2} 
-                color={color} 
-              />
+              <MaterialCommunityIcons name={TAB_ICONS.breath} size={size + 2} color={color} />
             ),
             headerShown: false
           }}
@@ -152,11 +139,7 @@ export default function MainLayout() {
           options={{
             title: 'Write',
             tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons 
-                name={TAB_ICONS.write} 
-                size={size + 2} 
-                color={color} 
-              />
+              <MaterialCommunityIcons name={TAB_ICONS.write} size={size + 2} color={color} />
             ),
           }}
         />
@@ -165,12 +148,31 @@ export default function MainLayout() {
           options={{
             title: 'Chat',
             tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons 
-                name={TAB_ICONS.chat} 
-                size={size + 2} 
-                color={color} 
-              />
+              <MaterialCommunityIcons name={TAB_ICONS.chat} size={size + 2} color={color} />
             ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile/edit"
+          options={{
+            href: null,
+            headerShown: true,
+            title: 'Edit Profile',
+          }}
+        />
+        <Tabs.Screen
+          name="profile/posts"
+          options={{
+            href: null,
+            headerShown: true,
+            title: 'My Posts',
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            href: null,
+            title: 'Profile',
           }}
         />
         <Tabs.Screen
@@ -188,24 +190,8 @@ export default function MainLayout() {
             headerShown: true,
           }}
         />
-        <Tabs.Screen
-          name="profile/edit"
-          options={{
-            href: null,
-            headerShown: true,
-            title: 'Edit Profile',
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            href: null,
-            title: 'Profile',
-          }}
-        />
       </Tabs>
 
-      {/* Backdrop */}
       {isMenuOpen && (
         <Pressable
           style={[styles.backdrop, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
@@ -213,7 +199,6 @@ export default function MainLayout() {
         />
       )}
 
-      {/* Sliding Menu */}
       <Animated.View
         style={[
           styles.menu,
@@ -255,6 +240,17 @@ export default function MainLayout() {
                   style={styles.actionButton}
                 >
                   Go to Profile
+                </Button>
+                <Button
+                  mode="outlined"
+                  icon="post"
+                  onPress={() => {
+                    toggleMenu();
+                    router.push('/(main)/profile/posts');
+                  }}
+                  style={styles.actionButton}
+                >
+                  My Posts
                 </Button>
                 <View style={[styles.themeToggle, { backgroundColor: colors.SURFACE }]}>
                   <View style={styles.themeToggleContent}>
@@ -310,17 +306,6 @@ export default function MainLayout() {
               </View>
 
               <View style={styles.actions}>
-                <Button
-                  mode="outlined"
-                  icon="account"
-                  onPress={() => {
-                    toggleMenu();
-                    router.push('/(main)/profile');
-                  }}
-                  style={styles.actionButton}
-                >
-                  Go to Profile
-                </Button>
                 <View style={[styles.themeToggle, { backgroundColor: colors.SURFACE }]}>
                   <View style={styles.themeToggleContent}>
                     <MaterialCommunityIcons

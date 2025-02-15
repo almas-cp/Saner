@@ -17,36 +17,71 @@ type ProfileData = {
   email: string | null;
 };
 
-const ProfileStats = ({ colors }: { colors: any }) => (
-  <View style={styles.statsContainer}>
-    <View style={styles.statItem}>
-      <Text variant="headlineMedium" style={{ color: colors.TEXT.PRIMARY }}>
-        28
-      </Text>
-      <Text variant="bodySmall" style={{ color: colors.TEXT.SECONDARY }}>
-        Days Streak
-      </Text>
+const ProfileStats = ({ colors }: { colors: any }) => {
+  const [postCount, setPostCount] = useState(0);
+  const [followerCount, setFollowerCount] = useState(0);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Get post count
+        const { count: posts, error: postsError } = await supabase
+          .from('posts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
+        if (postsError) throw postsError;
+
+        // Get follower count
+        const { count: followers, error: followersError } = await supabase
+          .from('followers')
+          .select('*', { count: 'exact', head: true })
+          .eq('following_id', user.id);
+
+        if (followersError) throw followersError;
+
+        setPostCount(posts || 0);
+        setFollowerCount(followers || 0);
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  return (
+    <View style={[styles.statsContainer, { backgroundColor: colors.SURFACE }]}>
+      <Pressable 
+        style={({ pressed }) => [
+          styles.statItem,
+          { opacity: pressed ? 0.7 : 1 }
+        ]}
+        onPress={() => router.push('/(main)/profile/posts')}
+      >
+        <Text variant="headlineMedium" style={{ color: colors.TEXT.PRIMARY, fontWeight: 'bold' }}>
+          {postCount}
+        </Text>
+        <Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>
+          Posts
+        </Text>
+      </Pressable>
+      <View style={[styles.statDivider, { backgroundColor: colors.BORDER }]} />
+      <View style={styles.statItem}>
+        <Text variant="headlineMedium" style={{ color: colors.TEXT.PRIMARY, fontWeight: 'bold' }}>
+          {followerCount}
+        </Text>
+        <Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>
+          Followers
+        </Text>
+      </View>
     </View>
-    <View style={[styles.statDivider, { backgroundColor: colors.BORDER }]} />
-    <View style={styles.statItem}>
-      <Text variant="headlineMedium" style={{ color: colors.TEXT.PRIMARY }}>
-        87%
-      </Text>
-      <Text variant="bodySmall" style={{ color: colors.TEXT.SECONDARY }}>
-        Completion
-      </Text>
-    </View>
-    <View style={[styles.statDivider, { backgroundColor: colors.BORDER }]} />
-    <View style={styles.statItem}>
-      <Text variant="headlineMedium" style={{ color: colors.TEXT.PRIMARY }}>
-        12
-      </Text>
-      <Text variant="bodySmall" style={{ color: colors.TEXT.SECONDARY }}>
-        Hours
-      </Text>
-    </View>
-  </View>
-);
+  );
+};
 
 const SettingsSection = ({ theme, toggleTheme, colors }: { theme: string; toggleTheme: () => void; colors: any }) => (
   <List.Section>
@@ -663,21 +698,23 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     marginHorizontal: 16,
     borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
   },
   statItem: {
+    flex: 1,
     alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    opacity: 0.8,
   },
   statDivider: {
     width: 1,
-    height: 30,
+    height: 40,
+    marginHorizontal: 16,
   },
   sectionTitle: {
     fontSize: 16,
