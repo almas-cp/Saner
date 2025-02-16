@@ -1,10 +1,11 @@
 import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
-import { Title, Text, List, Avatar, Button, ActivityIndicator, Surface, Divider } from 'react-native-paper';
+import { Title, Text, List, Avatar, Button, ActivityIndicator, Surface, Divider, Badge } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../src/lib/supabase';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
+import { formatDistanceToNow } from 'date-fns';
 
 type Database = {
   public: {
@@ -34,12 +35,24 @@ type ConnectionRequest = Database['public']['Tables']['connections']['Row'] & {
   requester: Database['public']['Tables']['profiles']['Row'];
 };
 
+type ChatListItem = {
+  connection_id: string;
+  other_user_id: string;
+  other_user_name: string | null;
+  other_user_username: string | null;
+  other_user_profile_pic: string | null;
+  last_message: string | null;
+  last_message_time: string | null;
+  unread_count: number;
+};
+
 export default function Chat() {
   const { colors } = useTheme();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([]);
+  const [chatList, setChatList] = useState<ChatListItem[]>([]);
 
   const fetchConnectionRequests = async () => {
     try {
@@ -67,11 +80,26 @@ export default function Chat() {
 
       if (error) throw error;
       
-      // Safely type the response data
       const typedData = (data as unknown as ConnectionRequest[]) || [];
       setConnectionRequests(typedData);
     } catch (error) {
       console.error('Error fetching connection requests:', error);
+    }
+  };
+
+  const fetchChatList = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase.rpc('get_chat_list', {
+        user_id: user.id
+      });
+
+      if (error) throw error;
+      setChatList(data || []);
+    } catch (error) {
+      console.error('Error fetching chat list:', error);
     } finally {
       setLoading(false);
     }
@@ -79,10 +107,11 @@ export default function Chat() {
 
   useEffect(() => {
     fetchConnectionRequests();
+    fetchChatList();
 
-    // Subscribe to changes in the connections table
+    // Subscribe to changes in connections and messages
     const channel = supabase
-      .channel('connections_changes')
+      .channel('chat_changes')
       .on(
         'postgres_changes',
         {
@@ -92,6 +121,18 @@ export default function Chat() {
         },
         () => {
           fetchConnectionRequests();
+          fetchChatList();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+        },
+        () => {
+          fetchChatList();
         }
       )
       .subscribe();
@@ -103,7 +144,10 @@ export default function Chat() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchConnectionRequests().finally(() => setRefreshing(false));
+    Promise.all([
+      fetchConnectionRequests(),
+      fetchChatList()
+    ]).finally(() => setRefreshing(false));
   }, []);
 
   const handleConnectionResponse = async (connectionId: string, accept: boolean) => {
@@ -115,7 +159,6 @@ export default function Chat() {
 
       if (error) throw error;
       
-      // Remove the request from the list
       setConnectionRequests(prev => prev.filter(req => req.id !== connectionId));
     } catch (error) {
       console.error('Error responding to connection request:', error);
@@ -198,9 +241,52 @@ export default function Chat() {
         <Title style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
           Messages
         </Title>
-        <Text style={[styles.emptyText, { color: colors.TEXT.SECONDARY }]}>
-          No messages yet
-        </Text>
+        {chatList.length === 0 ? (
+          <Text style={[styles.emptyText, { color: colors.TEXT.SECONDARY }]}>
+            No messages yet. Connect with other users to start chatting!
+          </Text>
+        ) : (
+          chatList.map((chat, index) => (
+            <MotiView
+              key={chat.connection_id}
+              from={{ opacity: 0, translateY: 20 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 500, delay: index * 100 }}
+            >
+              <Surface style={[styles.chatCard, { backgroundColor: colors.SURFACE }]}>
+                <List.Item
+                  title={chat.other_user_name || 'Anonymous'}
+                  description={chat.last_message || 'No messages yet'}
+                  left={() => (
+                    <Avatar.Image
+                      size={48}
+                      source={{ uri: chat.other_user_profile_pic || 'https://i.pravatar.cc/300' }}
+                    />
+                  )}
+                  right={() => chat.unread_count > 0 && (
+                    <View style={styles.badgeContainer}>
+                      <Badge size={24} style={{ backgroundColor: colors.TAB_BAR.ACTIVE }}>
+                        {chat.unread_count}
+                      </Badge>
+                      {chat.last_message_time && (
+                        <Text variant="bodySmall" style={[styles.timeText, { color: colors.TEXT.SECONDARY }]}>
+                          {formatDistanceToNow(new Date(chat.last_message_time), { addSuffix: true })}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                  onPress={() => router.push(`/(main)/chat/${chat.other_user_id}`)}
+                  titleStyle={{ color: colors.TEXT.PRIMARY }}
+                  descriptionStyle={{ color: colors.TEXT.SECONDARY }}
+                  descriptionNumberOfLines={1}
+                />
+              </Surface>
+              {index < chatList.length - 1 && (
+                <Divider style={[styles.divider, { backgroundColor: colors.BORDER }]} />
+              )}
+            </MotiView>
+          ))
+        )}
       </View>
     </ScrollView>
   );
@@ -244,5 +330,19 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     marginTop: 16,
+  },
+  chatCard: {
+    borderRadius: 12,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  badgeContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingRight: 8,
+  },
+  timeText: {
+    fontSize: 12,
+    marginTop: 4,
   },
 }); 
