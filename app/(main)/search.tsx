@@ -1,9 +1,16 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Searchbar, List, Text, Divider, Avatar, Chip } from 'react-native-paper';
+import { Searchbar, List, Text, Divider, Avatar, Chip, Surface } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
 import { supabase } from '../../src/lib/supabase';
 import { useRouter, useNavigation } from 'expo-router';
+
+type Profile = {
+  id: string;
+  name: string | null;
+  username: string | null;
+  profile_pic_url: string | null;
+};
 
 type Post = {
   id: string;
@@ -52,7 +59,6 @@ export default function SearchScreen() {
 
     try {
       const searchTerm = query.toLowerCase().trim();
-      console.log('Searching for:', searchTerm, 'Type:', searchType);
       
       const promises = [];
 
@@ -98,8 +104,6 @@ export default function SearchScreen() {
     }
   }, [searchType]);
 
-  // ... rest of the component code ...
-
   return (
     <View style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
       <View style={styles.searchHeader}>
@@ -115,8 +119,142 @@ export default function SearchScreen() {
           autoCapitalize="none"
           autoCorrect={false}
         />
-        {/* ... rest of your existing JSX ... */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
+          contentContainerStyle={styles.filterContainer}
+        >
+          <Chip
+            selected={searchType === 'all'}
+            onPress={() => setSearchType('all')}
+            style={styles.filterChip}
+          >
+            All
+          </Chip>
+          <Chip
+            selected={searchType === 'users'}
+            onPress={() => setSearchType('users')}
+            style={styles.filterChip}
+          >
+            Users
+          </Chip>
+          <Chip
+            selected={searchType === 'posts'}
+            onPress={() => setSearchType('posts')}
+            style={styles.filterChip}
+          >
+            Posts
+          </Chip>
+        </ScrollView>
       </View>
+
+      <ScrollView style={styles.results}>
+        {(searchType === 'all' || searchType === 'users') && profiles.length > 0 && (
+          <View style={styles.section}>
+            <Text variant="titleMedium" style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
+              Users
+            </Text>
+            {profiles.map((profile) => (
+              <Surface
+                key={profile.id}
+                style={[styles.resultCard, { backgroundColor: colors.SURFACE }]}
+                elevation={1}
+              >
+                <List.Item
+                  title={profile.name || 'Anonymous'}
+                  description={`@${profile.username || 'username'}`}
+                  left={() => (
+                    <Avatar.Image
+                      size={48}
+                      source={{ uri: profile.profile_pic_url || 'https://i.pravatar.cc/300' }}
+                    />
+                  )}
+                  onPress={() => router.push(`/(main)/profile/${profile.id}`)}
+                  titleStyle={{ color: colors.TEXT.PRIMARY }}
+                  descriptionStyle={{ color: colors.TEXT.SECONDARY }}
+                />
+              </Surface>
+            ))}
+          </View>
+        )}
+
+        {(searchType === 'all' || searchType === 'posts') && posts.length > 0 && (
+          <View style={styles.section}>
+            <Text variant="titleMedium" style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
+              Posts
+            </Text>
+            {posts.map((post) => (
+              <Surface
+                key={post.id}
+                style={[styles.resultCard, { backgroundColor: colors.SURFACE }]}
+                elevation={1}
+              >
+                <List.Item
+                  title={post.title}
+                  description={post.content}
+                  onPress={() => router.push(`/(main)/discover/${post.id}`)}
+                  titleStyle={{ color: colors.TEXT.PRIMARY }}
+                  descriptionStyle={{ color: colors.TEXT.SECONDARY }}
+                  descriptionNumberOfLines={2}
+                />
+              </Surface>
+            ))}
+          </View>
+        )}
+
+        {searchQuery.length >= 2 && !isSearching && profiles.length === 0 && posts.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={{ color: colors.TEXT.SECONDARY }}>No results found</Text>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  searchHeader: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  searchBar: {
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  filterScroll: {
+    flexGrow: 0,
+  },
+  filterContainer: {
+    paddingRight: 8,
+    gap: 8,
+    flexDirection: 'row',
+  },
+  filterChip: {
+    marginRight: 8,
+  },
+  results: {
+    flex: 1,
+  },
+  section: {
+    padding: 16,
+    paddingTop: 8,
+  },
+  sectionTitle: {
+    marginBottom: 12,
+  },
+  resultCard: {
+    borderRadius: 12,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+});
