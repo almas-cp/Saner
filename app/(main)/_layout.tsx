@@ -14,6 +14,7 @@ const TAB_ICONS = {
   breath: 'weather-windy',
   write: 'pencil',
   chat: 'chat',
+  'wall-e': 'robot',
   profile: 'account',
 } as const;
 
@@ -158,6 +159,15 @@ export default function MainLayout() {
             title: 'Chat',
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name={TAB_ICONS.chat} size={size + 2} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="wall-e"
+          options={{
+            title: 'Wall-E',
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name={TAB_ICONS['wall-e']} size={size + 2} color={color} />
             ),
           }}
         />
