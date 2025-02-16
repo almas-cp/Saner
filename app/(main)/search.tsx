@@ -1,9 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Searchbar, List, Text, Divider, Avatar, Chip } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
 import { supabase } from '../../src/lib/supabase';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 
 type Profile = {
   id: string;
@@ -28,11 +28,24 @@ type Post = {
 export default function SearchScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState('');
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchType, setSearchType] = useState<'all' | 'users' | 'posts'>('all');
+  const searchbarRef = React.useRef<any>(null);
+
+  useEffect(() => {
+    // Focus the search input when the screen mounts
+    const unsubscribe = navigation.addListener('focus', () => {
+      setTimeout(() => {
+        searchbarRef.current?.focus();
+      }, 100);
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query);
@@ -96,6 +109,7 @@ export default function SearchScreen() {
     <View style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
       <View style={styles.searchHeader}>
         <Searchbar
+          ref={searchbarRef}
           placeholder="Search users and posts..."
           onChangeText={handleSearch}
           value={searchQuery}
