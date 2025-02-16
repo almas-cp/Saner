@@ -1,8 +1,8 @@
-import { View, StyleSheet, ScrollView, SafeAreaView, Animated, Platform, Pressable, Modal } from 'react-native';
+import { View, StyleSheet, ScrollView, SafeAreaView, Animated, Platform, Pressable, Modal, RefreshControl } from 'react-native';
 import { Switch, List, Avatar, Text, IconButton, TextInput, Button, useTheme as usePaperTheme, Card, ActivityIndicator, Surface } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../src/lib/supabase';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -417,6 +417,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchProfile = async () => {
     try {
@@ -499,6 +500,11 @@ export default function Profile() {
     }
   }
 
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchProfile().finally(() => setRefreshing(false));
+  }, []);
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.BACKGROUND, justifyContent: 'center', alignItems: 'center' }]}>
@@ -548,7 +554,17 @@ export default function Profile() {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
+    <ScrollView 
+      style={[styles.container, { backgroundColor: colors.BACKGROUND }]}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[colors.TAB_BAR.ACTIVE]}
+          tintColor={colors.TAB_BAR.ACTIVE}
+        />
+      }
+    >
       <Animated.View 
         style={[
           styles.header,
