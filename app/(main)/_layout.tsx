@@ -89,29 +89,38 @@ export default function MainLayout() {
         screenOptions={{
           ...navigationTheme.screenOptions,
           headerRight: () => (
-            profile?.profile_pic_url ? (
-              <Pressable
-                onPress={toggleMenu}
-                style={({ pressed }) => ({
-                  marginRight: 16,
-                  opacity: pressed ? 0.7 : 1,
-                  transform: [{ scale: pressed ? 0.95 : 1 }],
-                })}
-              >
-                <Avatar.Image
-                  size={32}
-                  source={{ uri: profile.profile_pic_url }}
-                />
-              </Pressable>
-            ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <IconButton
-                icon="account-circle-outline"
-                size={28}
+                icon="magnify"
+                size={24}
                 iconColor={colors.TAB_BAR.ACTIVE}
-                onPress={toggleMenu}
-                style={{ marginRight: 8 }}
+                onPress={() => router.push('/(main)/search')}
               />
-            )
+              {profile?.profile_pic_url ? (
+                <Pressable
+                  onPress={toggleMenu}
+                  style={({ pressed }) => ({
+                    marginRight: 16,
+                    marginLeft: 8,
+                    opacity: pressed ? 0.7 : 1,
+                    transform: [{ scale: pressed ? 0.95 : 1 }],
+                  })}
+                >
+                  <Avatar.Image
+                    size={32}
+                    source={{ uri: profile.profile_pic_url }}
+                  />
+                </Pressable>
+              ) : (
+                <IconButton
+                  icon="account-circle-outline"
+                  size={28}
+                  iconColor={colors.TAB_BAR.ACTIVE}
+                  onPress={toggleMenu}
+                  style={{ marginRight: 8, marginLeft: 8 }}
+                />
+              )}
+            </View>
           ),
         }}>
         <Tabs.Screen name="index" options={{ href: null }} />
@@ -188,6 +197,14 @@ export default function MainLayout() {
           options={{
             href: null,
             headerShown: true,
+          }}
+        />
+        <Tabs.Screen
+          name="search"
+          options={{
+            href: null,
+            headerShown: true,
+            title: 'Search',
           }}
         />
       </Tabs>
