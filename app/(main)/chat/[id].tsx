@@ -117,15 +117,22 @@ export default function ChatConversation() {
 
   useEffect(() => {
     fetchMessages();
+  }, []);
 
-    // Subscribe to new messages
-    logChat('Setting up real-time subscription');
+  // Separate effect for subscription to ensure we have currentUserId
+  useEffect(() => {
+    if (!currentUserId || !id) return;
+
+    // Subscribe to new messages with a unique channel name
+    const channelName = `chat_messages_${currentUserId}_${id}`;
+    logChat('Setting up real-time subscription', { channelName });
+
     const channel = supabase
-      .channel('chat_messages')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'messages',
           filter: `or(and(sender_id.eq.${currentUserId},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUserId}))`,
@@ -134,48 +141,48 @@ export default function ChatConversation() {
           logChat('Real-time update received', { 
             eventType: payload.eventType,
             messageId: payload.new?.id,
-            senderId: payload.new?.sender_id
+            senderId: payload.new?.sender_id,
+            receiverId: payload.new?.receiver_id
           });
           
-          // Handle all new messages that aren't temporary
-          if (payload.eventType === 'INSERT' && !payload.new.id.startsWith('temp-')) {
-            const newMessage = payload.new as Message;
-            
-            // Check if message already exists (to avoid duplicates)
-            setMessages(prev => {
-              if (prev.some(m => m.id === newMessage.id)) {
-                return prev;
-              }
-              return [...prev, newMessage];
-            });
-
-            // Auto scroll for new messages
-            setTimeout(() => {
-              scrollViewRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-
-            // Mark message as read if we're the receiver
-            if (newMessage.receiver_id === currentUserId) {
-              supabase
-                .from('messages')
-                .update({ read_at: new Date().toISOString() })
-                .eq('id', newMessage.id)
-                .then(({ error }) => {
-                  if (error) {
-                    logChat('Error marking message as read', error);
-                  }
-                });
+          const newMessage = payload.new as Message;
+          
+          // Check if message already exists (to avoid duplicates)
+          setMessages(prev => {
+            if (prev.some(m => m.id === newMessage.id || m.id === `temp-${newMessage.id}`)) {
+              return prev;
             }
+            return [...prev, newMessage];
+          });
+
+          // Auto scroll for new messages
+          setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+
+          // Mark message as read if we're the receiver
+          if (newMessage.receiver_id === currentUserId) {
+            supabase
+              .from('messages')
+              .update({ read_at: new Date().toISOString() })
+              .eq('id', newMessage.id)
+              .then(({ error }) => {
+                if (error) {
+                  logChat('Error marking message as read', error);
+                } else {
+                  logChat('Message marked as read', { messageId: newMessage.id });
+                }
+              });
           }
         }
       )
       .subscribe((status) => {
-        logChat('Subscription status', status);
+        logChat('Subscription status', { status, channelName });
       });
 
     return () => {
-      logChat('Cleaning up subscription');
-      channel.unsubscribe();
+      logChat('Cleaning up subscription', { channelName });
+      supabase.removeChannel(channel);
     };
   }, [id, currentUserId]);
 
