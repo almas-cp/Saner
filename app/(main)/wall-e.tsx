@@ -1,7 +1,7 @@
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text, TextInput, IconButton, Surface, ActivityIndicator, Avatar } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
-import { useRouter } from 'expo-router';
+import { useRouter, Redirect } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../src/lib/supabase';
 import { MotiView } from 'moti';
@@ -15,6 +15,7 @@ type Message = {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  user_id?: string;
 };
 
 // Initialize Gemini AI
@@ -55,6 +56,15 @@ const logWallE = (action: string, details?: any) => {
   }
 };
 
+// Add UUID generation function
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export default function WallE() {
   const { colors } = useTheme();
   const router = useRouter();
@@ -63,156 +73,245 @@ export default function WallE() {
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Load chat history from local storage
+  // Check authentication status
   useEffect(() => {
-    loadChatHistory();
     checkAuth();
-  }, []);
 
-  // Save chat history when messages change
-  useEffect(() => {
-    if (messages.length > 1) { // Only save if there are messages beyond the initial one
-      saveChatHistory();
-    }
-  }, [messages]);
-
-  const loadChatHistory = async () => {
-    try {
-      const filePath = `${FileSystem.documentDirectory}wall-e-chat.json`;
-      logWallE('Loading chat history', { filePath });
-      
-      const fileExists = await FileSystem.getInfoAsync(filePath);
-      
-      if (fileExists.exists) {
-        const content = await FileSystem.readAsStringAsync(filePath);
-        const savedMessages = JSON.parse(content);
-        logWallE('Chat history loaded', { messageCount: savedMessages.length });
-        setMessages(savedMessages);
-      } else {
-        logWallE('No chat history found');
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setIsAuthenticated(false);
+        router.replace('/(main)/profile');
+      } else if (event === 'SIGNED_IN') {
+        setIsAuthenticated(true);
+        setCurrentUser(session?.user || null);
+        if (session?.user) {
+          loadChatHistory(session.user.id);
+        }
       }
-    } catch (error) {
-      logWallE('Error loading chat history', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  };
+    });
 
-  const saveChatHistory = async () => {
-    try {
-      const filePath = `${FileSystem.documentDirectory}wall-e-chat.json`;
-      logWallE('Saving chat history', { messageCount: messages.length });
-      await FileSystem.writeAsStringAsync(filePath, JSON.stringify(messages));
-      logWallE('Chat history saved successfully');
-    } catch (error) {
-      logWallE('Error saving chat history', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  };
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const checkAuth = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        router.replace('/(main)/profile');
+        logWallE('No authenticated user found');
+        setIsAuthenticated(false);
+        setCurrentUser(null);
         return;
       }
       setCurrentUser(user);
+      setIsAuthenticated(true);
+      await loadChatHistory(user.id);
     } catch (error) {
       console.error('Auth error:', error);
-      router.replace('/(main)/profile');
+      setIsAuthenticated(false);
+      setCurrentUser(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || isTyping) return;
+  // If authentication status is known and user is not authenticated, redirect to profile
+  if (!loading && !isAuthenticated) {
+    return <Redirect href="/(main)/profile" />;
+  }
 
-    logWallE('Sending message', { content: newMessage.trim() });
+  const loadChatHistory = async (userId: string) => {
+    try {
+      logWallE('Loading chat history from Supabase', { userId });
+      
+      const { data, error } = await supabase
+        .from('wall_e_chats')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: newMessage.trim(),
-      timestamp: new Date().toISOString(),
-    };
+      if (error) throw error;
 
-    setMessages(prev => [...prev, userMessage]);
-    setNewMessage('');
-    setIsTyping(true);
+      if (data && data.length > 0) {
+        const formattedMessages: Message[] = data.map(msg => ({
+          id: msg.id,
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+          timestamp: msg.created_at,
+          user_id: msg.user_id
+        }));
+        logWallE('Chat history loaded', { messageCount: formattedMessages.length });
+        setMessages([INITIAL_MESSAGE, ...formattedMessages]);
+      } else {
+        logWallE('No chat history found');
+        setMessages([INITIAL_MESSAGE]);
+      }
+    } catch (error) {
+      logWallE('Error loading chat history', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      setMessages([INITIAL_MESSAGE]);
+    }
+  };
 
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
+  const saveMessageToSupabase = async (message: Message) => {
+    if (!currentUser) return;
 
     try {
-      // Prepare chat history
-      const chatHistory = messages.map(m => `${m.role}: ${m.content}`).join('\n');
-      const prompt = `${SYSTEM_PROMPT}\n\nChat History:\n${chatHistory}\n\nuser: ${newMessage.trim()}`;
+      const { error } = await supabase
+        .from('wall_e_chats')
+        .insert({
+          id: message.id,
+          user_id: currentUser.id,
+          role: message.role,
+          content: message.content,
+          created_at: message.timestamp
+        });
 
-      logWallE('Generating content', {
-        messageCount: messages.length + 1,
-        lastMessage: newMessage.trim()
-      });
-
-      // Generate content using Gemini
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-
-      logWallE('API Success Response', {
-        responseLength: text.length,
-        promptTokens: result.response.promptFeedback
-      });
-
-      const assistantMessage: Message = {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: text.trim(),
-        timestamp: new Date().toISOString(),
-      };
-
-      logWallE('Adding assistant message', {
-        messageId: assistantMessage.id,
-        contentLength: assistantMessage.content.length,
-      });
-
-      setMessages(prev => [...prev, assistantMessage]);
-      
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      if (error) throw error;
+      logWallE('Message saved to Supabase', { messageId: message.id });
     } catch (error) {
-      logWallE('Error in sendMessage', {
+      logWallE('Error saving message to Supabase', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
       });
-      
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: "I apologize, but I'm having trouble responding right now. Please try again in a moment.",
-        timestamp: new Date().toISOString(),
-      }]);
-    } finally {
-      setIsTyping(false);
     }
   };
 
   const clearChat = async () => {
+    if (!currentUser) return;
+
     try {
       logWallE('Clearing chat history');
-      await FileSystem.deleteAsync(`${FileSystem.documentDirectory}wall-e-chat.json`);
+      const { error } = await supabase
+        .from('wall_e_chats')
+        .delete()
+        .eq('user_id', currentUser.id);
+
+      if (error) throw error;
       setMessages([INITIAL_MESSAGE]);
       logWallE('Chat history cleared successfully');
     } catch (error) {
       logWallE('Error clearing chat', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || isTyping || !currentUser) return;
+
+    const messageContent = newMessage.trim();
+    setNewMessage('');
+    setIsTyping(true);
+
+    try {
+      // Create and save user message
+      const userMessage: Message = {
+        id: generateUUID(),
+        role: 'user',
+        content: messageContent,
+        timestamp: new Date().toISOString(),
+        user_id: currentUser.id
+      };
+
+      // Save user message to Supabase first
+      const { data: savedUserMessage, error: saveError } = await supabase
+        .from('wall_e_chats')
+        .insert({
+          user_id: currentUser.id,
+          role: userMessage.role,
+          content: userMessage.content
+        })
+        .select()
+        .single();
+
+      if (saveError) {
+        throw new Error(`Failed to save user message: ${saveError.message}`);
+      }
+
+      // Update message with saved ID from database
+      userMessage.id = savedUserMessage.id;
+      setMessages(prev => [...prev, userMessage]);
+      
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+
+      // Prepare chat history for AI
+      const chatHistory = messages.map(m => `${m.role}: ${m.content}`).join('\n');
+      const prompt = `${SYSTEM_PROMPT}\n\nChat History:\n${chatHistory}\n\nuser: ${messageContent}`;
+
+      // Generate AI response
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      // Save assistant message to Supabase
+      const { data: savedAssistantMessage, error: assistantSaveError } = await supabase
+        .from('wall_e_chats')
+        .insert({
+          user_id: currentUser.id,
+          role: 'assistant',
+          content: text.trim()
+        })
+        .select()
+        .single();
+
+      if (assistantSaveError) {
+        throw new Error(`Failed to save assistant message: ${assistantSaveError.message}`);
+      }
+
+      // Create assistant message with saved ID
+      const assistantMessage: Message = {
+        id: savedAssistantMessage.id,
+        role: 'assistant',
+        content: text.trim(),
+        timestamp: savedAssistantMessage.created_at,
+        user_id: currentUser.id
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+      
+      try {
+        // Save error message to Supabase
+        const { data: savedErrorMessage, error: errorSaveError } = await supabase
+          .from('wall_e_chats')
+          .insert({
+            user_id: currentUser.id,
+            role: 'assistant',
+            content: "I apologize, but I'm having trouble responding right now. Please try again in a moment."
+          })
+          .select()
+          .single();
+
+        if (errorSaveError) throw errorSaveError;
+
+        const errorMessage: Message = {
+          id: savedErrorMessage.id,
+          role: 'assistant',
+          content: savedErrorMessage.content,
+          timestamp: savedErrorMessage.created_at,
+          user_id: currentUser.id
+        };
+
+        setMessages(prev => [...prev, errorMessage]);
+      } catch (saveError) {
+        console.error('Error saving error message:', saveError);
+      }
+    } finally {
+      setIsTyping(false);
     }
   };
 
