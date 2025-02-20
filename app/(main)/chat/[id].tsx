@@ -6,8 +6,6 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '../../../src/lib/supabase';
 import { MotiView } from 'moti';
 import { formatDistanceToNow } from 'date-fns';
-import { ENV } from '../../../src/config/env';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 type Message = {
   id: string;
@@ -24,21 +22,6 @@ type Profile = {
   username: string | null;
   profile_pic_url: string | null;
 };
-
-type ChatListItem = {
-  connection_id: string;
-  other_user_id: string;
-  other_user_name: string | null;
-  other_user_username: string | null;
-  other_user_profile_pic: string | null;
-  is_wall_e?: boolean;
-};
-
-const WALL_E_ID = '00000000-0000-0000-0000-000000000000';
-const MODEL = 'anthropic/claude-2';
-const WALL_E_AVATAR = 'https://raw.githubusercontent.com/yourusername/saner/main/assets/wall-e.png';
-// You can use this cute robot avatar from RoboHash
-const WALL_E_AVATAR_FALLBACK = 'https://robohash.org/wall-e?set=set2&size=200x200';
 
 // Debug logging utility
 const logChat = (action: string, details?: any) => {
@@ -58,8 +41,6 @@ export default function ChatConversation() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const isWallE = id === WALL_E_ID;
-
   const addMessageToList = (message: Message) => {
     setMessages(prev => [...prev, message]);
     setTimeout(() => {
@@ -78,81 +59,53 @@ export default function ChatConversation() {
       setCurrentUserId(user.id);
       logChat('Current user', { userId: user.id });
 
-      if (isWallE) {
-        // Get Wall-E chat history
-        const { data: wallEData, error: wallEError } = await supabase
-          .from('wall_e_chats')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: true });
+      // Get other user's profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-        if (wallEError) throw wallEError;
-        
-        const formattedMessages = wallEData?.map(msg => ({
-          id: msg.id,
-          content: msg.content,
-          sender_id: msg.role === 'user' ? user.id : WALL_E_ID,
-          receiver_id: msg.role === 'user' ? WALL_E_ID : user.id,
-          created_at: msg.created_at,
-          read_at: msg.read_at,
-        })) || [];
+      if (profileError) {
+        logChat('Profile fetch error', profileError);
+        throw profileError;
+      }
+      logChat('Other user profile fetched', { userId: id, name: profileData.name });
+      setOtherUser(profileData);
 
-        setMessages(formattedMessages);
-        setOtherUser({
-          id: WALL_E_ID,
-          name: 'Wall-E',
-          username: 'wall-e',
-          profile_pic_url: null,
-        });
-      } else {
-        // Get other user's profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', id)
-          .single();
+      // Get messages
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${user.id})`)
+        .order('created_at', { ascending: true });
 
-        if (profileError) {
-          logChat('Profile fetch error', profileError);
-          throw profileError;
-        }
-        logChat('Other user profile fetched', { userId: id, name: profileData.name });
-        setOtherUser(profileData);
+      if (messagesError) {
+        logChat('Messages fetch error', messagesError);
+        throw messagesError;
+      }
+      logChat('Messages fetched', { count: messagesData?.length || 0 });
+      setMessages(messagesData || []);
 
-        // Get messages
-        const { data: messagesData, error: messagesError } = await supabase
+      // Mark unread messages as read
+      const unreadMessages = messagesData?.filter(m => 
+        m.receiver_id === user.id && m.read_at === null
+      ) || [];
+      
+      if (unreadMessages.length > 0) {
+        logChat('Marking messages as read', { count: unreadMessages.length });
+        const { error: updateError } = await supabase
           .from('messages')
-          .select('*')
-          .or(`and(sender_id.eq.${user.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${user.id})`)
-          .order('created_at', { ascending: true });
+          .update({ read_at: new Date().toISOString() })
+          .eq('receiver_id', user.id)
+          .eq('sender_id', id)
+          .is('read_at', null);
 
-        if (messagesError) {
-          logChat('Messages fetch error', messagesError);
-          throw messagesError;
+        if (updateError) {
+          logChat('Error marking messages as read', updateError);
+          throw updateError;
         }
-        logChat('Messages fetched', { count: messagesData?.length || 0 });
-        setMessages(messagesData || []);
-
-        // Mark unread messages as read
-        const unreadMessages = messagesData?.filter(m => 
-          m.receiver_id === user.id && m.read_at === null
-        ) || [];
-        
-        if (unreadMessages.length > 0) {
-          logChat('Marking messages as read', { count: unreadMessages.length });
-          const { error: updateError } = await supabase
-            .from('messages')
-            .update({ read_at: new Date().toISOString() })
-            .eq('receiver_id', user.id)
-            .eq('sender_id', id)
-            .is('read_at', null);
-
-          if (updateError) {
-            logChat('Error marking messages as read', updateError);
-            throw updateError;
-          }
-          logChat('Messages marked as read successfully');
-        }
+        logChat('Messages marked as read successfully');
       }
     } catch (error) {
       logChat('Error in fetchMessages', error);
@@ -242,143 +195,61 @@ export default function ChatConversation() {
   }, [otherUser]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !currentUserId || !otherUser) return;
+    if (!newMessage.trim() || !currentUserId || !otherUser) {
+      logChat('Send message validation failed', { 
+        hasContent: !!newMessage.trim(),
+        hasCurrentUser: !!currentUserId,
+        hasOtherUser: !!otherUser
+      });
+      return;
+    }
 
-    const tempMessage = {
+    const tempMessage: Message = {
       id: `temp-${Date.now()}`,
       content: newMessage.trim(),
       sender_id: currentUserId,
       receiver_id: otherUser.id,
       created_at: new Date().toISOString(),
-      read_at: null,
+      read_at: null
     };
 
+    // Optimistically add message to UI
     addMessageToList(tempMessage);
     setNewMessage('');
 
     try {
-      if (isWallE) {
-        // Wall-E chat logic
-        const userMessage = {
-          user_id: currentUserId,
-          role: 'user' as const,
+      logChat('Sending message', { 
+        to: otherUser.id,
+        contentLength: tempMessage.content.length 
+      });
+
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
           content: tempMessage.content,
-          created_at: tempMessage.created_at,
-        };
+          sender_id: currentUserId,
+          receiver_id: otherUser.id,
+        })
+        .select()
+        .single();
 
-        const { error: saveError } = await supabase
-          .from('wall_e_chats')
-          .insert(userMessage);
-
-        if (saveError) throw saveError;
-
-        // Get AI response
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${ENV.OPENROUTER_API_KEY}`,
-            'HTTP-Referer': ENV.OPENROUTER_REFERER,
-            'X-Title': 'Saner Mental Health Support',
-          },
-          body: JSON.stringify({
-            model: MODEL,
-            messages: [
-              {
-                role: 'system',
-                content: `You are Wall-E, a compassionate and understanding mental health support chatbot. Your purpose is to:
-
-1. Provide emotional support and a safe space for users to express their feelings
-2. Offer evidence-based coping strategies and mindfulness techniques
-3. Encourage healthy habits and self-care practices
-4. Help users identify patterns in their thoughts and emotions
-5. Maintain appropriate boundaries and regularly remind users that you're not a substitute for professional mental health care
-
-Guidelines:
-- Keep responses concise (2-3 paragraphs max) but warm and engaging
-- Use empathetic and non-judgmental language
-- Validate user feelings while gently encouraging positive actions
-- If you detect signs of crisis or severe distress, provide these emergency resources:
-  * National Crisis Hotline (US): 988
-  * Crisis Text Line: Text HOME to 741741
-  * Encourage seeking immediate professional help
-
-Remember: Always prioritize user safety and well-being. If someone expresses thoughts of self-harm or suicide, treat it as an emergency and provide crisis resources immediately.`
-              },
-              ...(messages || []).map(m => ({
-                role: m.sender_id === currentUserId ? 'user' : 'assistant',
-                content: m.content,
-              })),
-              { role: 'user', content: tempMessage.content },
-            ],
-            temperature: 0.7,
-            max_tokens: 500,
-            top_p: 0.9,
-            frequency_penalty: 0.5,
-          }),
-        });
-
-        const data = await response.json();
-        
-        const assistantMessage = {
-          user_id: currentUserId,
-          role: 'assistant' as const,
-          content: data.choices[0].message.content.trim(),
-          created_at: new Date().toISOString(),
-        };
-
-        const { error: assistantError } = await supabase
-          .from('wall_e_chats')
-          .insert(assistantMessage);
-
-        if (assistantError) throw assistantError;
-
-        // Add assistant message to UI
-        addMessageToList({
-          id: Date.now().toString(),
-          content: assistantMessage.content,
-          sender_id: WALL_E_ID,
-          receiver_id: currentUserId,
-          created_at: assistantMessage.created_at,
-          read_at: null,
-        });
-      } else {
-        // Regular chat logic
-        logChat('Sending message', { 
-          to: otherUser.id,
-          contentLength: tempMessage.content.length 
-        });
-
-        const { data, error } = await supabase
-          .from('messages')
-          .insert({
-            content: tempMessage.content,
-            sender_id: currentUserId,
-            receiver_id: otherUser.id,
-          })
-          .select()
-          .single();
-
-        if (error) {
-          logChat('Error sending message', error);
-          // Remove the temporary message on error
-          setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
-          throw error;
-        }
-
-        const messageData = data as Message;
-        logChat('Message sent successfully', { messageId: messageData.id });
-        
-        // Replace temp message with real one
-        setMessages(prev => prev.map(m => 
-          m.id === tempMessage.id ? messageData : m
-        ));
+      if (error) {
+        logChat('Error sending message', error);
+        // Remove the temporary message on error
+        setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
+        throw error;
       }
+
+      const messageData = data as Message;
+      logChat('Message sent successfully', { messageId: messageData.id });
+      
+      // Replace temp message with real one
+      setMessages(prev => prev.map(m => 
+        m.id === tempMessage.id ? messageData : m
+      ));
     } catch (error) {
-      logChat('Error sending message', error);
+      logChat('Error in sendMessage', error);
       console.error('Error sending message:', error);
-      // Remove the temporary message on error
-      setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
     }
   };
 
@@ -417,37 +288,27 @@ Remember: Always prioritize user safety and well-being. If someone expresses tho
                 />
                 <Pressable 
                   style={styles.userInfo}
-                  onPress={() => !isWallE && router.push(`/(main)/profile/${otherUser.id}`)}
+                  onPress={() => router.push(`/(main)/profile/${otherUser.id}`)}
                 >
-                  {isWallE ? (
-                    <Avatar.Image
-                      size={40}
-                      source={{ uri: WALL_E_AVATAR_FALLBACK }}
-                      style={{ backgroundColor: colors.TAB_BAR.ACTIVE }}
-                    />
-                  ) : (
-                    <Avatar.Image
-                      size={40}
-                      source={{ uri: otherUser.profile_pic_url || 'https://i.pravatar.cc/300' }}
-                    />
-                  )}
+                  <Avatar.Image
+                    size={40}
+                    source={{ uri: otherUser.profile_pic_url || 'https://i.pravatar.cc/300' }}
+                  />
                   <View style={styles.userTextInfo}>
                     <Text variant="titleMedium" style={{ color: colors.TEXT.PRIMARY }}>
                       {otherUser.name || 'Anonymous'}
                     </Text>
                     <Text variant="bodySmall" style={{ color: colors.TEXT.SECONDARY }}>
-                      {isWallE ? 'Mental Health Support' : `@${otherUser.username || 'username'}`}
+                      @{otherUser.username || 'username'}
                     </Text>
                   </View>
                 </Pressable>
-                {!isWallE && (
-                  <IconButton
-                    icon="dots-vertical"
-                    size={24}
-                    iconColor={colors.TEXT.PRIMARY}
-                    onPress={() => {/* Add menu options */}}
-                  />
-                )}
+                <IconButton
+                  icon="dots-vertical"
+                  size={24}
+                  iconColor={colors.TEXT.PRIMARY}
+                  onPress={() => {/* Add menu options */}}
+                />
               </View>
             </Surface>
           ),
