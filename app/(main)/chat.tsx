@@ -53,37 +53,62 @@ export default function Chat() {
   const [refreshing, setRefreshing] = useState(false);
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([]);
   const [chatList, setChatList] = useState<ChatListItem[]>([]);
+  const [unreadWallECount, setUnreadWallECount] = useState(0);
+
+  const fetchWallEUnreadCount = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { count, error } = await supabase
+        .from('wall_e_chats')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('role', 'assistant')
+        .is('read_at', null);
+
+      if (error) throw error;
+      setUnreadWallECount(count || 0);
+    } catch (error) {
+      console.error('Error fetching Wall-E unread count:', error);
+    }
+  };
 
   const fetchConnectionRequests = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from('connections')
-        .select(`
-          id,
-          requester_id,
-          target_id,
-          status,
-          created_at,
-          requester:profiles!connections_requester_id_fkey (
-            id,
-            name,
-            username,
-            profile_pic_url
-          )
-        `)
-        .eq('target_id', user.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+      await Promise.all([
+        fetchWallEUnreadCount(),
+        (async () => {
+          const { data, error } = await supabase
+            .from('connections')
+            .select(`
+              id,
+              requester_id,
+              target_id,
+              status,
+              created_at,
+              requester:profiles!connections_requester_id_fkey (
+                id,
+                name,
+                username,
+                profile_pic_url
+              )
+            `)
+            .eq('target_id', user.id)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      
-      const typedData = (data as unknown as ConnectionRequest[]) || [];
-      setConnectionRequests(typedData);
+          if (error) throw error;
+          
+          const typedData = (data as unknown as ConnectionRequest[]) || [];
+          setConnectionRequests(typedData);
+        })()
+      ]);
     } catch (error) {
-      console.error('Error fetching connection requests:', error);
+      console.error('Error fetching data:', error);
     }
   };
 
@@ -185,6 +210,36 @@ export default function Chat() {
         />
       }
     >
+      <MotiView
+        from={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'timing', duration: 500 }}
+      >
+        <Surface style={[styles.wallECard, { backgroundColor: colors.SURFACE }]}>
+          <List.Item
+            title="Wall-E"
+            description="Your Mental Health Support Companion"
+            left={() => (
+              <Avatar.Icon
+                size={48}
+                icon="robot"
+                style={{ backgroundColor: colors.TAB_BAR.ACTIVE }}
+              />
+            )}
+            right={() => unreadWallECount > 0 && (
+              <View style={styles.badgeContainer}>
+                <Badge size={24} style={{ backgroundColor: colors.TAB_BAR.ACTIVE }}>
+                  {unreadWallECount}
+                </Badge>
+              </View>
+            )}
+            onPress={() => router.push('/(main)/wall-e')}
+            titleStyle={{ color: colors.TEXT.PRIMARY }}
+            descriptionStyle={{ color: colors.TEXT.SECONDARY }}
+          />
+        </Surface>
+      </MotiView>
+
       {connectionRequests.length > 0 && (
         <View style={styles.section}>
           <Title style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
@@ -344,5 +399,18 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 12,
     marginTop: 4,
+  },
+  wallECard: {
+    margin: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
   },
 }); 

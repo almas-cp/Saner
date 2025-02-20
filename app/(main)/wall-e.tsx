@@ -147,6 +147,22 @@ export default function WallE() {
         }));
         logWallE('Chat history loaded', { messageCount: formattedMessages.length });
         setMessages([INITIAL_MESSAGE, ...formattedMessages]);
+
+        // Mark all assistant messages as read
+        const assistantMessageIds = data
+          .filter(msg => msg.role === 'assistant' && !msg.read_at)
+          .map(msg => msg.id);
+
+        if (assistantMessageIds.length > 0) {
+          const { error: updateError } = await supabase
+            .from('wall_e_chats')
+            .update({ read_at: new Date().toISOString() })
+            .in('id', assistantMessageIds);
+
+          if (updateError) {
+            logWallE('Error marking messages as read', { error: updateError });
+          }
+        }
       } else {
         logWallE('No chat history found');
         setMessages([INITIAL_MESSAGE]);
