@@ -1,6 +1,5 @@
 export const ENV = {
   SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL as string,
   SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY as string,
-  OPENROUTER_API_KEY: process.env.EXPO_PUBLIC_OPENROUTER_API_KEY as string,
-  OPENROUTER_REFERER: process.env.EXPO_PUBLIC_OPENROUTER_REFERER as string,
-}; 
+  GEMINI_API_KEY: process.env.EXPO_PUBLIC_GEMINI_API_KEY as string,
+};

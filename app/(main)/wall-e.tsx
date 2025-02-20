@@ -8,6 +8,7 @@ import { MotiView } from 'moti';
 import { formatDistanceToNow } from 'date-fns';
 import { ENV } from '../../src/config/env';
 import * as FileSystem from 'expo-file-system';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 type Message = {
   id: string;
@@ -16,8 +17,9 @@ type Message = {
   timestamp: string;
 };
 
-// Using auto-router for optimal model selection
-const MODEL = 'openrouter/auto';
+// Initialize Gemini AI
+const genAI = new GoogleGenerativeAI(ENV.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 const INITIAL_MESSAGE: Message = {
   id: 'welcome',
@@ -148,94 +150,29 @@ export default function WallE() {
     }, 100);
 
     try {
-      const requestBody = {
-        model: MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: SYSTEM_PROMPT
-          },
-          ...messages.map(m => ({
-            role: m.role,
-            content: m.content
-          })),
-          { role: 'user', content: newMessage.trim() }
-        ],
-        provider: {
-          // Enable fallbacks for better uptime
-          allow_fallbacks: true,
-          // Sort by throughput for better performance
-          sort: 'throughput',
-          // Require all parameters to be supported
-          require_parameters: true,
-          // Allow data collection for better service
-          data_collection: 'allow'
-        },
-        // Enable response caching for better performance
-        cache: true,
-        // Request structured output for better parsing
-        response_format: { type: 'text' },
-        // Add temperature for more consistent responses
-        temperature: 0.7,
-        // Add max tokens to prevent overly long responses
-        max_tokens: 500
-      };
+      // Prepare chat history
+      const chatHistory = messages.map(m => `${m.role}: ${m.content}`).join('\n');
+      const prompt = `${SYSTEM_PROMPT}\n\nChat History:\n${chatHistory}\n\nuser: ${newMessage.trim()}`;
 
-      logWallE('API Request Body', {
-        model: requestBody.model,
-        messageCount: requestBody.messages.length,
-        lastMessage: requestBody.messages[requestBody.messages.length - 1],
-        provider: requestBody.provider
+      logWallE('Generating content', {
+        messageCount: messages.length + 1,
+        lastMessage: newMessage.trim()
       });
 
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${ENV.OPENROUTER_API_KEY}`,
-          'HTTP-Referer': ENV.OPENROUTER_REFERER,
-          'X-Title': 'Saner App - Mental Health Support'
-        },
-        body: JSON.stringify(requestBody)
-      });
+      // Generate content using Gemini
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
 
-      logWallE('API Response Status', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        logWallE('API Error Response', {
-          status: response.status,
-          errorData,
-          requestHeaders: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${ENV.OPENROUTER_API_KEY.substring(0, 10)}...`,
-            'HTTP-Referer': ENV.OPENROUTER_REFERER,
-            'X-Title': 'Saner App - Mental Health Support'
-          }
-        });
-        throw new Error(errorData.error?.message || 'Failed to get response from Wall-E');
-      }
-
-      const data = await response.json();
       logWallE('API Success Response', {
-        choices: data.choices?.length,
-        model: data.model,
-        usage: data.usage,
+        responseLength: text.length,
+        promptTokens: result.response.promptFeedback
       });
-      
-      if (!data.choices?.[0]?.message?.content) {
-        logWallE('Invalid API Response Format', data);
-        throw new Error('Invalid response format from API');
-      }
 
       const assistantMessage: Message = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: data.choices[0].message.content.trim(),
+        content: text.trim(),
         timestamp: new Date().toISOString(),
       };
 
