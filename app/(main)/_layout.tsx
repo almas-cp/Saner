@@ -165,18 +165,15 @@ export default function MainLayout() {
         <Tabs.Screen
           name="wall-e"
           options={{
-            title: 'Wall-E',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name={TAB_ICONS['wall-e']} size={size + 2} color={color} />
-            ),
+            tabBarButton: () => null,
           }}
         />
         <Tabs.Screen
           name="profile/edit"
           options={{
-            href: null,
             headerShown: true,
             title: 'Edit Profile',
+            tabBarButton: () => null,
           }}
         />
         <Tabs.Screen
@@ -215,6 +212,18 @@ export default function MainLayout() {
             href: null,
             headerShown: true,
             title: 'Search',
+          }}
+        />
+        <Tabs.Screen
+          name="chat/[id]"
+          options={{
+            tabBarButton: () => null,
+          }}
+        />
+        <Tabs.Screen
+          name="profile/[id]"
+          options={{
+            tabBarButton: () => null,
           }}
         />
       </Tabs>
