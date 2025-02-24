@@ -15,11 +15,12 @@ const TAB_ICONS = {
   discover: 'compass',
   write: 'pencil',
   chat: 'chat',
+  profile: 'account-circle-outline',
 } as const;
 
 const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
   // Filter only the main tabs we want to show
-  const mainTabs = ['discover', 'breath', 'write', 'chat'];
+  const mainTabs = ['discover', 'breath', 'write', 'chat', 'profile'];
   const visibleRoutes = state.routes.filter((route: any) => mainTabs.includes(route.name));
 
   return (
@@ -192,31 +193,8 @@ export default function MainLayout() {
                 size={24}
                 iconColor={colors.TAB_BAR.ACTIVE}
                 onPress={() => router.push('/(main)/search')}
-                style={{ marginRight: 4 }}
+                style={{ marginRight: 8 }}
               />
-              {profile?.profile_pic_url ? (
-                <Pressable
-                  onPress={toggleMenu}
-                  style={({ pressed }) => ({
-                    marginRight: 16,
-                    opacity: pressed ? 0.7 : 1,
-                    transform: [{ scale: pressed ? 0.95 : 1 }],
-                  })}
-                >
-                  <Avatar.Image
-                    size={32}
-                    source={{ uri: profile.profile_pic_url }}
-                  />
-                </Pressable>
-              ) : (
-                <IconButton
-                  icon="account-circle-outline"
-                  size={28}
-                  iconColor={colors.TAB_BAR.ACTIVE}
-                  onPress={toggleMenu}
-                  style={{ marginRight: 8 }}
-                />
-              )}
             </View>
           ),
         }}
@@ -246,6 +224,12 @@ export default function MainLayout() {
           }}
         />
         <Tabs.Screen
+          name="profile"
+          options={{
+            headerShown: true
+          }}
+        />
+        <Tabs.Screen
           name="index"
           options={{
             href: null
@@ -265,12 +249,6 @@ export default function MainLayout() {
         />
         <Tabs.Screen
           name="profile/posts"
-          options={{
-            href: null
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
           options={{
             href: null
           }}
