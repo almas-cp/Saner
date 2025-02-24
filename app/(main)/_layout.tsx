@@ -19,7 +19,7 @@ const TAB_ICONS = {
 
 const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
   // Filter only the main tabs we want to show
-  const mainTabs = ['breath', 'discover', 'write', 'chat'];
+  const mainTabs = ['discover', 'breath', 'write', 'chat'];
   const visibleRoutes = state.routes.filter((route: any) => mainTabs.includes(route.name));
 
   return (
@@ -217,16 +217,16 @@ export default function MainLayout() {
         }}
       >
         <Tabs.Screen
-          name="breath"
+          name="discover"
           options={{
-            title: 'Breath',
+            title: 'Discover',
             headerShown: true
           }}
         />
         <Tabs.Screen
-          name="discover"
+          name="breath"
           options={{
-            title: 'Discover',
+            title: 'Breath',
             headerShown: true
           }}
         />
