@@ -3,20 +3,111 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getNavigationTheme } from '../../src/styles/theme';
 import { MainTabParamList } from '../../src/types/navigation';
 import { useTheme } from '../../src/contexts/theme';
-import { View, Animated, Pressable, StyleSheet, Dimensions, Switch } from 'react-native';
+import React from 'react';
+import { View, Animated, Pressable, StyleSheet, Dimensions, Switch, Platform } from 'react-native';
 import { Avatar, Text, IconButton, Button } from 'react-native-paper';
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../src/lib/supabase';
 import { useRouter } from 'expo-router';
 
 const TAB_ICONS = {
-  discover: 'compass',
   breath: 'weather-windy',
+  discover: 'compass',
   write: 'pencil',
   chat: 'chat',
-  'wall-e': 'robot',
-  profile: 'account',
 } as const;
+
+const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
+  // Filter only the main tabs we want to show
+  const mainTabs = ['breath', 'discover', 'write', 'chat'];
+  const visibleRoutes = state.routes.filter((route: any) => mainTabs.includes(route.name));
+
+  return (
+    <View style={{
+      flexDirection: 'row',
+      backgroundColor: colors.SURFACE,
+      height: Platform.OS === 'ios' ? 90 : 65,
+      paddingBottom: Platform.OS === 'ios' ? 20 : 0,
+      borderTopWidth: 0.5,
+      borderTopColor: colors.BORDER,
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      elevation: 0,
+      shadowColor: 'transparent',
+    }}>
+      {visibleRoutes.map((route: any, index: number) => {
+        const { options } = descriptors[route.key];
+        const label = options.tabBarLabel ?? options.title ?? route.name;
+        const routeIndex = state.routes.findIndex(r => r.key === route.key);
+        const isFocused = state.index === routeIndex;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        return (
+          <Pressable
+            key={route.key}
+            onPress={onPress}
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 45,
+              position: 'relative',
+            }}
+            android_ripple={{ 
+              color: colors.BORDER,
+              borderless: true,
+              radius: 28
+            }}
+          >
+            <Animated.View
+              style={{
+                alignItems: 'center',
+                justifyContent: 'center',
+                transform: [{ scale: isFocused ? 1.15 : 1 }],
+              }}
+            >
+              <MaterialCommunityIcons
+                name={TAB_ICONS[route.name as keyof typeof TAB_ICONS]}
+                size={22}
+                color={isFocused ? colors.TAB_BAR.ACTIVE : colors.TAB_BAR.INACTIVE}
+                style={{
+                  marginBottom: 4,
+                  opacity: isFocused ? 1 : 0.8
+                }}
+              />
+              <Text
+                style={{
+                  color: isFocused ? colors.TAB_BAR.ACTIVE : colors.TAB_BAR.INACTIVE,
+                  fontSize: 11,
+                  fontWeight: isFocused ? '600' : '400',
+                  opacity: isFocused ? 1 : 0.8,
+                  letterSpacing: 0.3,
+                }}
+              >
+                {label}
+              </Text>
+            </Animated.View>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+};
 
 type ProfileData = {
   id: string;
@@ -87,8 +178,8 @@ export default function MainLayout() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.BACKGROUND }}>
       <Tabs
+        tabBar={(props) => <CustomTabBar {...props} colors={colors} />}
         screenOptions={{
-          ...navigationTheme.screenOptions,
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <IconButton
@@ -123,107 +214,94 @@ export default function MainLayout() {
               )}
             </View>
           ),
-        }}>
-        <Tabs.Screen name="index" options={{ href: null }} />
-        <Tabs.Screen
-          name="discover"
-          options={{
-            title: 'Discover',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name={TAB_ICONS.discover} size={size + 2} color={color} />
-            ),
-          }}
-        />
+        }}
+      >
         <Tabs.Screen
           name="breath"
           options={{
             title: 'Breath',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name={TAB_ICONS.breath} size={size + 2} color={color} />
-            ),
-            headerShown: false
+            headerShown: true
+          }}
+        />
+        <Tabs.Screen
+          name="discover"
+          options={{
+            title: 'Discover',
+            headerShown: true
           }}
         />
         <Tabs.Screen
           name="write"
           options={{
             title: 'Write',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name={TAB_ICONS.write} size={size + 2} color={color} />
-            ),
+            headerShown: true
           }}
         />
         <Tabs.Screen
           name="chat"
           options={{
             title: 'Chat',
-            tabBarIcon: ({ color, size }) => (
-              <MaterialCommunityIcons name={TAB_ICONS.chat} size={size + 2} color={color} />
-            ),
+            headerShown: true
+          }}
+        />
+        <Tabs.Screen
+          name="index"
+          options={{
+            href: null
           }}
         />
         <Tabs.Screen
           name="wall-e"
           options={{
-            tabBarButton: () => null,
+            href: null
           }}
         />
         <Tabs.Screen
           name="profile/edit"
           options={{
-            headerShown: true,
-            title: 'Edit Profile',
-            tabBarButton: () => null,
+            href: null
           }}
         />
         <Tabs.Screen
           name="profile/posts"
           options={{
-            href: null,
-            headerShown: true,
-            title: 'My Posts',
+            href: null
           }}
         />
         <Tabs.Screen
           name="profile"
           options={{
-            href: null,
-            title: 'Profile',
+            href: null
           }}
         />
         <Tabs.Screen
           name="discover/create"
           options={{
-            href: null,
-            headerShown: true,
-            title: 'Create Post',
+            href: null
           }}
         />
         <Tabs.Screen
           name="discover/[id]"
           options={{
-            href: null,
-            headerShown: true,
+            href: null
           }}
         />
         <Tabs.Screen
           name="search"
           options={{
-            href: null,
-            headerShown: true,
-            title: 'Search',
+            href: null
           }}
         />
         <Tabs.Screen
           name="chat/[id]"
           options={{
-            tabBarButton: () => null,
+            href: null
           }}
         />
         <Tabs.Screen
           name="profile/[id]"
           options={{
-            tabBarButton: () => null,
+            href: null
           }}
         />
       </Tabs>
