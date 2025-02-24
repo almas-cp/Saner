@@ -180,6 +180,11 @@ export default function MainLayout() {
       <Tabs
         tabBar={(props) => <CustomTabBar {...props} colors={colors} />}
         screenOptions={{
+          headerTitle: "",
+          headerStyle: {
+            backgroundColor: colors.SURFACE,
+          },
+          headerShadowVisible: false,
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <IconButton
@@ -219,28 +224,24 @@ export default function MainLayout() {
         <Tabs.Screen
           name="discover"
           options={{
-            title: 'Discover',
             headerShown: true
           }}
         />
         <Tabs.Screen
           name="breath"
           options={{
-            title: 'Breath',
             headerShown: true
           }}
         />
         <Tabs.Screen
           name="write"
           options={{
-            title: 'Write',
             headerShown: true
           }}
         />
         <Tabs.Screen
           name="chat"
           options={{
-            title: 'Chat',
             headerShown: true
           }}
         />
