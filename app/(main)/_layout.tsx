@@ -23,6 +23,20 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
   const mainTabs = ['discover', 'breath', 'write', 'chat', 'profile'];
   const visibleRoutes = state.routes.filter((route: any) => mainTabs.includes(route.name));
 
+  // Function to check if user is authenticated
+  const checkAuthAndNavigate = async (routeName: string) => {
+    if (routeName === 'chat') {
+      // Check if user is authenticated
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        // If not authenticated, redirect to profile page
+        navigation.navigate('profile');
+        return false;
+      }
+    }
+    return true;
+  };
+
   return (
     <View style={{
       flexDirection: 'row',
@@ -53,7 +67,7 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
         const routeIndex = state.routes.findIndex(r => r.key === route.key);
         const isFocused = state.index === routeIndex;
 
-        const onPress = () => {
+        const onPress = async () => {
           const event = navigation.emit({
             type: 'tabPress',
             target: route.key,
@@ -61,7 +75,11 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
           });
 
           if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
+            // Check authentication for chat tab
+            const canNavigate = await checkAuthAndNavigate(route.name);
+            if (canNavigate) {
+              navigation.navigate(route.name);
+            }
           }
         };
 
@@ -167,6 +185,9 @@ export default function MainLayout() {
   // Check if we're on a chat detail page (chat/[id]) or Wall-E chat
   const isOnChatDetail = pathname.match(/\/chat\/[^\/]+$/) || pathname.includes('/wall-e');
 
+  // Check if we're on the main chat page
+  const isOnChatPage = pathname === '/chat';
+
   const fetchProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -196,6 +217,20 @@ export default function MainLayout() {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Redirect unauthorized users from chat page
+  useEffect(() => {
+    if (isOnChatPage || isOnChatDetail) {
+      const checkAuth = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.replace('/(main)/profile');
+        }
+      };
+      
+      checkAuth();
+    }
+  }, [pathname, router]);
 
   const toggleMenu = () => {
     const toValue = isMenuOpen ? Dimensions.get('window').width : 0;
