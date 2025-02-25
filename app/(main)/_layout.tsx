@@ -175,7 +175,7 @@ type ProfileData = {
 };
 
 export default function MainLayout() {
-  const { theme, colors, toggleTheme, colorPalette, setColorPalette } = useTheme();
+  const { theme, colors, toggleTheme, palette, setColorPalette } = useTheme();
   const navigationTheme = getNavigationTheme(theme);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -262,7 +262,13 @@ export default function MainLayout() {
 
   const handlePaletteChange = (palette: 'default' | 'citric' | 'mint' | 'berry' | 'ocean') => {
     setColorPalette(palette);
-    setPaletteMenuVisible(false);
+    setIsMenuOpen(false);
+  };
+
+  // Inside the MainLayout component, add this helper function
+  const formatPaletteName = (paletteName: string | undefined): string => {
+    if (!paletteName) return 'Default';
+    return paletteName.charAt(0).toUpperCase() + paletteName.slice(1);
   };
 
   return (
@@ -498,10 +504,10 @@ export default function MainLayout() {
                       styles.colorSwatch, 
                       { 
                         backgroundColor: 
-                          colorPalette === 'default' ? '#6B4DE6' :
-                          colorPalette === 'citric' ? '#FFB347' :
-                          colorPalette === 'mint' ? '#4AD66D' :
-                          colorPalette === 'berry' ? '#FF6B6B' :
+                          palette === 'default' ? '#6B4DE6' :
+                          palette === 'citric' ? '#FFB347' :
+                          palette === 'mint' ? '#4AD66D' :
+                          palette === 'berry' ? '#FF6B6B' :
                           '#2E86DE', // ocean
                         borderWidth: 2,
                         borderColor: colors.BACKGROUND,
@@ -518,7 +524,7 @@ export default function MainLayout() {
                     color: colors.TEXT.PRIMARY,
                     fontWeight: '500',
                   }}>
-                    {colorPalette.charAt(0).toUpperCase() + colorPalette.slice(1)}
+                    {formatPaletteName(palette)}
                   </Text>
                   <MaterialCommunityIcons name="chevron-down" size={24} color={colors.TEXT.SECONDARY} />
                 </Pressable>

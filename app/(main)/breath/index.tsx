@@ -10,6 +10,8 @@ import { MotiView } from 'moti';
 import { supabase } from '../../../src/lib/supabase';
 import { useRouter } from 'expo-router';
 import { TextInput } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
+import { getCommonStyles } from '../../../src/styles/commonStyles';
 
 type Exercise = {
   id: string;
@@ -224,12 +226,12 @@ function MoodSlider() {
         marginHorizontal: 16,
         marginBottom: 16,
         padding: 16,
-        shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.9)' : colors.TEXT.PRIMARY,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: theme === 'dark' ? 0.2 : 0.08,
-        shadowRadius: theme === 'dark' ? 12 : 8,
-        elevation: theme === 'dark' ? 5 : 3,
-        borderWidth: 0.5,
+        shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.15)',
+        shadowOffset: { width: 0, height: theme === 'dark' ? 2 : 1 },
+        shadowOpacity: theme === 'dark' ? 0.2 : 0.07,
+        shadowRadius: theme === 'dark' ? 12 : 5,
+        elevation: theme === 'dark' ? 5 : 2,
+        borderWidth: theme === 'dark' ? 0.5 : 0,
         borderColor: colors.BORDER,
       }
     ]}>
@@ -374,7 +376,7 @@ function MoodSlider() {
 }
 
 function RecommendedExercise({ onSelectExercise }: { onSelectExercise: (exercise: Exercise) => void }) {
-  const { colors, theme, colorPalette } = useTheme();
+  const { colors, theme, palette } = useTheme();
   const [recommendation, setRecommendation] = useState<Exercise | null>(null);
   
   useEffect(() => {
@@ -400,10 +402,10 @@ function RecommendedExercise({ onSelectExercise }: { onSelectExercise: (exercise
   
   // Dynamically select colors based on current theme and palette
   const gradientColors = (() => {
-    if (colorPalette === 'ocean') return theme === 'dark' ? ['#1565C0', '#0D47A1'] as const : ['#4a6fa1', '#166bb5'] as const;
-    if (colorPalette === 'mint') return theme === 'dark' ? ['#2E7D32', '#1B5E20'] as const : ['#4AD66D', '#388E3C'] as const;
-    if (colorPalette === 'berry') return theme === 'dark' ? ['#C62828', '#B71C1C'] as const : ['#E57373', '#D32F2F'] as const;
-    if (colorPalette === 'citric') return theme === 'dark' ? ['#EF6C00', '#E65100'] as const : ['#FFB347', '#F57C00'] as const;
+    if (palette === 'ocean') return theme === 'dark' ? ['#1565C0', '#0D47A1'] as const : ['#4a6fa1', '#166bb5'] as const;
+    if (palette === 'mint') return theme === 'dark' ? ['#2E7D32', '#1B5E20'] as const : ['#4AD66D', '#388E3C'] as const;
+    if (palette === 'berry') return theme === 'dark' ? ['#C62828', '#B71C1C'] as const : ['#E57373', '#D32F2F'] as const;
+    if (palette === 'citric') return theme === 'dark' ? ['#EF6C00', '#E65100'] as const : ['#FFB347', '#F57C00'] as const;
     return theme === 'dark' ? ['#5E35B1', '#4527A0'] as const : ['#4a6fa1', '#166bb5'] as const; // Default - purple theme
   })();
   
@@ -553,10 +555,12 @@ function StatsCard() {
       backgroundColor: colors.CARD,
       borderRadius: 16,
       elevation: theme === 'dark' ? 4 : 2,
-      shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.5)' : '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: theme === 'dark' ? 0.25 : 0.1,
+      shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.15)',
+      shadowOffset: { width: 0, height: theme === 'dark' ? 2 : 1 },
+      shadowOpacity: theme === 'dark' ? 0.25 : 0.07,
       shadowRadius: theme === 'dark' ? 8 : 4,
+      borderWidth: theme === 'dark' ? 0.5 : 0,
+      borderColor: theme === 'dark' ? colors.BORDER : 'transparent',
     }]}>
       <Card.Content>
         <Text style={[styles.statsTitle, { color: colors.TEXT.PRIMARY }]}>
@@ -784,7 +788,7 @@ function ExerciseModal({ exercise, visible, onClose }: {
       onRequestClose={onClose}
     >
       <View style={[styles.modalOverlay, { 
-        backgroundColor: theme === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)' 
+        backgroundColor: theme === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.4)' 
       }]}>
         <MotiView
           from={{ scale: 0.95, opacity: 0 }}
@@ -792,11 +796,13 @@ function ExerciseModal({ exercise, visible, onClose }: {
           transition={{ type: 'timing', duration: 400 }}
           style={[styles.modalContent, { 
             backgroundColor: colors.SURFACE,
-            shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.7)' : '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: theme === 'dark' ? 0.3 : 0.25,
-            shadowRadius: theme === 'dark' ? 10 : 3.84,
-            elevation: theme === 'dark' ? 8 : 5,
+            shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.3)',
+            shadowOffset: { width: 0, height: theme === 'dark' ? 4 : 2 },
+            shadowOpacity: theme === 'dark' ? 0.3 : 0.15,
+            shadowRadius: theme === 'dark' ? 10 : 6,
+            elevation: theme === 'dark' ? 8 : 4,
+            borderWidth: theme === 'dark' ? 0.5 : 0,
+            borderColor: theme === 'dark' ? colors.BORDER : 'transparent',
           }]}
         >
           <View style={styles.modalHeader}>
@@ -1008,12 +1014,12 @@ function ExerciseCard({ exercise, onPress }: { exercise: Exercise; onPress: () =
           {
             backgroundColor: colors.CARD,
             borderRadius: 20,
-            shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.5)' : colors.TEXT.PRIMARY,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: theme === 'dark' ? 0.2 : 0.08,
-            shadowRadius: theme === 'dark' ? 10 : 8,
-            elevation: theme === 'dark' ? 5 : 3,
-            borderWidth: 0.5,
+            shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.2)',
+            shadowOffset: { width: 0, height: theme === 'dark' ? 2 : 1 },
+            shadowOpacity: theme === 'dark' ? 0.2 : 0.06,
+            shadowRadius: theme === 'dark' ? 10 : 5,
+            elevation: theme === 'dark' ? 5 : 2,
+            borderWidth: theme === 'dark' ? 0.5 : 0,
             borderColor: colors.BORDER,
             transform: [{ scale: pressed ? 0.98 : 1 }],
             opacity: pressed ? 0.9 : 1,
@@ -1026,7 +1032,7 @@ function ExerciseCard({ exercise, onPress }: { exercise: Exercise; onPress: () =
             { 
               backgroundColor: theme === 'dark' 
                 ? `${colors.TAB_BAR.ACTIVE}40` 
-                : `${colors.TAB_BAR.ACTIVE}20` 
+                : `${colors.TAB_BAR.ACTIVE}15` 
             }
           ]}>
             <MaterialCommunityIcons
@@ -1050,7 +1056,7 @@ function ExerciseCard({ exercise, onPress }: { exercise: Exercise; onPress: () =
                   style={[styles.benefitChip, { 
                     backgroundColor: theme === 'dark' 
                       ? `${colors.TAB_BAR.ACTIVE}30` 
-                      : `${colors.TAB_BAR.ACTIVE}15`
+                      : `${colors.TAB_BAR.ACTIVE}10`
                   }]}
                   textStyle={{ 
                     fontSize: 10, 
@@ -1069,10 +1075,12 @@ function ExerciseCard({ exercise, onPress }: { exercise: Exercise; onPress: () =
 }
 
 export default function Breath() {
-  const { colors, theme } = useTheme();
+  const { colors, theme, palette } = useTheme();
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
+
+  const commonStyles = getCommonStyles(theme, palette);
 
   useEffect(() => {
     checkAuth();

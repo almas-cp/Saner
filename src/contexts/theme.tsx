@@ -3,11 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from 'react-native';
 import { Theme, COLORS, ColorPalette, getThemeWithPalette } from '../styles/theme';
 
-type ThemeContextType = {
+export type ThemeContextType = {
   theme: Theme;
+  colors: any;
+  palette: ColorPalette;
   toggleTheme: () => void;
-  colors: typeof COLORS.LIGHT | typeof COLORS.DARK;
-  colorPalette: ColorPalette;
   setColorPalette: (palette: ColorPalette) => void;
 };
 
@@ -19,7 +19,8 @@ const COLOR_PALETTE_STORAGE_KEY = '@app_color_palette';
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemColorScheme = useColorScheme();
   const [theme, setTheme] = useState<Theme>(systemColorScheme || 'light');
-  const [colorPalette, setColorPaletteState] = useState<ColorPalette>('default');
+  const [palette, setPaletteState] = useState<ColorPalette>('default');
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     // Load saved theme and color palette
@@ -32,8 +33,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       }
       
       if (savedPalette && isValidColorPalette(savedPalette)) {
-        setColorPaletteState(savedPalette as ColorPalette);
+        setPaletteState(savedPalette as ColorPalette);
       }
+    }).finally(() => {
+      setIsLoaded(true);
     });
   }, []);
 
@@ -48,19 +51,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setColorPalette = (palette: ColorPalette) => {
-    setColorPaletteState(palette);
+    setPaletteState(palette);
     AsyncStorage.setItem(COLOR_PALETTE_STORAGE_KEY, palette);
   };
 
   // Get the theme colors based on the current theme and selected palette
-  const colors = getThemeWithPalette(theme, colorPalette);
+  const colors = getThemeWithPalette(theme, palette);
+
+  // Show nothing until theme preference is loaded
+  if (!isLoaded) {
+    return null;
+  }
 
   return (
     <ThemeContext.Provider value={{ 
       theme, 
       toggleTheme, 
       colors,
-      colorPalette,
+      palette,
       setColorPalette
     }}>
       {children}

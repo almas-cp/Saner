@@ -36,43 +36,45 @@ export const COLORS = {
     }
   },
   LIGHT: {
-    BACKGROUND: '#FFFFFF',
-    SURFACE: '#F8F9FA',
-    CARD: '#FFFFFF',
+    BACKGROUND: '#FFFFFF',       // Clean white background
+    SURFACE: '#F8F9FA',          // Very light gray for surfaces
+    SURFACE_VARIANT: '#F1F3F5',  // Slightly darker for modals and cards
+    CARD: '#FFFFFF',             // Pure white for cards with shadows
     TEXT: {
-      PRIMARY: '#1A1A2E',    // Dark navy
-      SECONDARY: '#16213E',  // Medium navy
-      TERTIARY: '#0F3460',   // Light navy
+      PRIMARY: '#000000',        // True black for primary text
+      SECONDARY: '#404040',      // Dark gray for secondary text
+      TERTIARY: '#737373',       // Medium gray for tertiary/disabled text
     },
-    BORDER: 'rgba(0, 0, 0, 0.06)',
+    BORDER: 'rgba(0, 0, 0, 0.08)',  // Slightly more visible borders
     TAB_BAR: {
-      ACTIVE: '#6B4DE6',
-      INACTIVE: '#9E9E9E',
-      BACKGROUND: '#FFFFFF',
+      ACTIVE: '#6B4DE6',          // Vibrant purple for active state
+      INACTIVE: '#8A8A8A',        // Darker gray for inactive state
+      BACKGROUND: '#FFFFFF',      // White background for tab bar
     },
     ICONS: {
-      PRIMARY: '#6B4DE6',
-      SECONDARY: '#9E9E9E',
+      PRIMARY: '#6B4DE6',         // Primary brand color for icons
+      SECONDARY: '#737373',       // Gray for secondary icons
     }
   },
   DARK: {
-    BACKGROUND: '#1A1A2E',   // Dark navy
-    SURFACE: '#16213E',      // Medium navy
-    CARD: '#0F3460',         // Light navy
+    BACKGROUND: '#000000',      // True black (Expo Go style)
+    SURFACE: '#121212',         // Second level (cards, menus)
+    SURFACE_VARIANT: '#1E1E1E', // Third level (elevated elements)
+    CARD: '#121212',            // Card background
     TEXT: {
       PRIMARY: '#FFFFFF',
-      SECONDARY: '#E9E9E9',
-      TERTIARY: '#B3B3B3',
+      SECONDARY: 'rgba(255, 255, 255, 0.7)',
+      TERTIARY: 'rgba(255, 255, 255, 0.45)',
     },
-    BORDER: 'rgba(255, 255, 255, 0.08)',
+    BORDER: 'rgba(255, 255, 255, 0.1)',
     TAB_BAR: {
       ACTIVE: '#9B7EFF',     // Light purple
-      INACTIVE: '#B3B3B3',
-      BACKGROUND: '#1A1A2E', // Dark navy
+      INACTIVE: 'rgba(255, 255, 255, 0.5)',
+      BACKGROUND: '#000000', // True black
     },
     ICONS: {
       PRIMARY: '#9B7EFF',    // Light purple
-      SECONDARY: '#B3B3B3',
+      SECONDARY: 'rgba(255, 255, 255, 0.5)',
     }
   },
 } as const;
@@ -106,11 +108,23 @@ export const getThemeWithPalette = (theme: Theme, palette: ColorPalette) => {
     ...baseColors,
     TAB_BAR: {
       ...baseColors.TAB_BAR,
-      ACTIVE: theme === 'light' ? paletteColors.PRIMARY : paletteColors.SECONDARY,
+      ACTIVE: theme === 'light' 
+        ? paletteColors.PRIMARY 
+        : palette === 'default' ? '#8A6BFF' : // More vibrant in dark mode
+          palette === 'citric' ? '#FFBE59' :
+          palette === 'mint' ? '#5AFFA0' :
+          palette === 'berry' ? '#FF7D7D' :
+          '#49A1FF', // ocean
     },
     ICONS: {
       ...baseColors.ICONS,
-      PRIMARY: theme === 'light' ? paletteColors.PRIMARY : paletteColors.SECONDARY,
+      PRIMARY: theme === 'light' 
+        ? paletteColors.PRIMARY 
+        : palette === 'default' ? '#8A6BFF' : // More vibrant in dark mode
+          palette === 'citric' ? '#FFBE59' :
+          palette === 'mint' ? '#5AFFA0' :
+          palette === 'berry' ? '#FF7D7D' :
+          '#49A1FF', // ocean
     }
   };
 };
@@ -127,7 +141,7 @@ export const getNavigationTheme = (theme: Theme) => {
         paddingBottom: Platform.OS === 'ios' ? 30 : 10,
         paddingTop: 10,
         backgroundColor: colors.TAB_BAR.BACKGROUND,
-        borderTopWidth: 1,
+        borderTopWidth: theme === 'dark' ? 0.5 : 1,
         borderTopColor: colors.BORDER,
         elevation: theme === 'light' ? 8 : 0,
         shadowColor: theme === 'light' ? '#000000' : 'transparent',
@@ -152,7 +166,7 @@ export const getNavigationTheme = (theme: Theme) => {
         backgroundColor: colors.BACKGROUND,
         elevation: 0,
         shadowOpacity: 0,
-        borderBottomWidth: 1,
+        borderBottomWidth: theme === 'dark' ? 0.5 : 1,
         borderBottomColor: colors.BORDER,
       },
       titleStyle: {
@@ -167,7 +181,7 @@ export const getNavigationTheme = (theme: Theme) => {
         paddingBottom: Platform.OS === 'ios' ? 30 : 10,
         paddingTop: 10,
         backgroundColor: colors.TAB_BAR.BACKGROUND,
-        borderTopWidth: 1,
+        borderTopWidth: theme === 'dark' ? 0.5 : 1,
         borderTopColor: colors.BORDER,
         elevation: theme === 'light' ? 8 : 0,
         shadowColor: theme === 'light' ? '#000000' : 'transparent',
@@ -189,7 +203,7 @@ export const getNavigationTheme = (theme: Theme) => {
         backgroundColor: colors.BACKGROUND,
         elevation: 0,
         shadowOpacity: 0,
-        borderBottomWidth: 1,
+        borderBottomWidth: theme === 'dark' ? 0.5 : 1,
         borderBottomColor: colors.BORDER,
       },
       headerTitleStyle: {
@@ -204,14 +218,16 @@ export const getNavigationTheme = (theme: Theme) => {
       padding: 16,
       marginHorizontal: 16,
       marginVertical: 8,
-      shadowColor: theme === 'light' ? '#000000' : '#000000',
+      borderWidth: theme === 'dark' ? 0.5 : 0,
+      borderColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : undefined,
+      shadowColor: '#000000',
       shadowOffset: {
         width: 0,
-        height: 2,
+        height: theme === 'dark' ? 4 : 2,
       },
-      shadowOpacity: theme === 'light' ? 0.1 : 0.2,
-      shadowRadius: 4,
-      elevation: theme === 'light' ? 4 : 8,
+      shadowOpacity: theme === 'dark' ? 0.4 : 0.1,
+      shadowRadius: theme === 'dark' ? 8 : 4,
+      elevation: theme === 'dark' ? 0 : 4, // Flat appearance in dark mode
     }
   } as const;
 }; 
