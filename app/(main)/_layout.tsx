@@ -220,7 +220,7 @@ export default function MainLayout() {
   
   // Load custom fonts
   const [fontsLoaded] = useFonts({
-    'Saner-Bold': require('../../assets/fonts/Montserrat-Bold.ttf'),
+    'Montserrat-Bold': require('../../assets/fonts/Montserrat-Bold.ttf'),
   });
   
   // Check if we're on a chat detail page (chat/[id]) or Wall-E chat
@@ -332,474 +332,482 @@ export default function MainLayout() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.BACKGROUND }}>
-      <Tabs
-        tabBar={(props) => isOnChatDetail ? null : <CustomTabBar {...props} colors={colors} />}
-        screenOptions={{
-          headerTitle: () => (
-            <Text 
-              style={{ 
-                fontFamily: fontsLoaded ? 'Saner-Bold' : undefined,
-                fontSize: 24, 
-                fontWeight: 'bold',
-                color: colors.TAB_BAR.ACTIVE,
-                letterSpacing: 0.6,
-                textShadowColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
-                textShadowOffset: { width: 0, height: 1 },
-                textShadowRadius: 1.5,
-                // Slight text outline effect for better readability
-                ...(Platform.OS === 'ios' ? {
-                  shadowColor: theme === 'dark' ? colors.TEXT.PRIMARY : colors.TEXT.SECONDARY,
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 0.2,
-                  shadowRadius: 0.5,
-                } : {})
-              }}
-            >
-              Saner
-            </Text>
-          ),
-          header: ({ route, options, navigation }) => {
-            const title = typeof options.headerTitle === 'function' 
-              ? options.headerTitle({ children: route.name })
-              : options.headerTitle || route.name;
-            
-            const right = options.headerRight ? 
-              options.headerRight({ tintColor: colors.TEXT.PRIMARY, pressColor: colors.BORDER, canGoBack: navigation.canGoBack() }) 
-              : null;
-            
-            return <CustomHeader title={title} right={right} />;
-          },
-          headerStyle: {
-            backgroundColor: 'transparent',
-            elevation: 0,
-            shadowOpacity: 0,
-          },
-          headerShadowVisible: false,
-          headerRight: () => (
-            <View style={{ 
-              flexDirection: 'row', 
-              alignItems: 'center',
-            }}>
-              <IconButton
-                icon="magnify"
-                size={24}
-                iconColor={colors.ICONS.PRIMARY}
-                onPress={() => router.push('/(main)/search')}
-                style={{ 
-                  marginRight: 4,
-                  backgroundColor: Platform.OS === 'ios' ? 
-                    (theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)') : 
-                    'transparent',
-                  borderRadius: 30,
-                  width: 40,
-                  height: 40,
-                }}
-              />
-              {profile?.profile_pic_url ? (
-                <Pressable
-                  onPress={toggleMenu}
-                  style={({ pressed }) => ({
-                    marginRight: 16,
-                    opacity: pressed ? 0.7 : 1,
-                    transform: [{ scale: pressed ? 0.95 : 1 }],
-                    borderRadius: 20,
-                    borderWidth: theme === 'dark' ? 1 : 0,
-                    borderColor: theme === 'dark' ? colors.BORDER : 'transparent',
-                    padding: 2,
-                  })}
-                >
-                  <Avatar.Image
-                    size={32}
-                    source={{ uri: profile.profile_pic_url }}
-                  />
-                </Pressable>
-              ) : (
-                <IconButton
-                  icon="account-circle-outline"
-                  size={28}
-                  iconColor={colors.ICONS.PRIMARY}
-                  onPress={toggleMenu}
+      {fontsLoaded ? (
+        <>
+          <Tabs
+            tabBar={(props) => isOnChatDetail ? null : <CustomTabBar {...props} colors={colors} />}
+            screenOptions={{
+              headerTitle: () => (
+                <Text 
                   style={{ 
-                    marginRight: 8,
-                    backgroundColor: Platform.OS === 'ios' ? 
-                      (theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)') : 
-                      'transparent',
-                    borderRadius: 30,
-                    width: 40,
-                    height: 40,
+                    fontFamily: 'Montserrat-Bold',
+                    fontSize: 24, 
+                    fontWeight: 'bold',
+                    color: colors.TAB_BAR.ACTIVE,
+                    letterSpacing: 0.6,
+                    textShadowColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
+                    textShadowOffset: { width: 0, height: 1 },
+                    textShadowRadius: 1.5,
+                    // Slight text outline effect for better readability
+                    ...(Platform.OS === 'ios' ? {
+                      shadowColor: theme === 'dark' ? colors.TEXT.PRIMARY : colors.TEXT.SECONDARY,
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 0.5,
+                    } : {})
                   }}
-                />
-              )}
-            </View>
-          ),
-        }}
-      >
-        <Tabs.Screen
-          name="discover"
-          options={{
-            headerShown: true
-          }}
-        />
-        <Tabs.Screen
-          name="breath"
-          options={{
-            headerShown: true
-          }}
-        />
-        <Tabs.Screen
-          name="write"
-          options={{
-            headerShown: true
-          }}
-        />
-        <Tabs.Screen
-          name="chat"
-          options={{
-            headerShown: true
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            headerShown: true
-          }}
-        />
-        <Tabs.Screen
-          name="index"
-          options={{
-            href: null
-          }}
-        />
-        <Tabs.Screen
-          name="wall-e"
-          options={{
-            href: null
-          }}
-        />
-        <Tabs.Screen
-          name="profile/edit"
-          options={{
-            href: null
-          }}
-        />
-        <Tabs.Screen
-          name="profile/posts"
-          options={{
-            href: null
-          }}
-        />
-        <Tabs.Screen
-          name="discover/create"
-          options={{
-            href: null
-          }}
-        />
-        <Tabs.Screen
-          name="discover/[id]"
-          options={{
-            href: null
-          }}
-        />
-        <Tabs.Screen
-          name="search"
-          options={{
-            href: null
-          }}
-        />
-        <Tabs.Screen
-          name="chat/[id]"
-          options={{
-            href: null
-          }}
-        />
-        <Tabs.Screen
-          name="profile/[id]"
-          options={{
-            href: null
-          }}
-        />
-      </Tabs>
-
-      {isMenuOpen && (
-        <Pressable
-          style={[styles.backdrop, { 
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          }]}
-          onPress={toggleMenu}
-        />
-      )}
-
-      <Animated.View
-        style={[
-          styles.menu,
-          { 
-            backgroundColor: colors.BACKGROUND,
-            transform: [{ translateX: slideAnim }],
-            borderTopLeftRadius: Platform.OS === 'ios' ? 20 : 0,
-            borderBottomLeftRadius: Platform.OS === 'ios' ? 20 : 0,
-          },
-        ]}
-      >
-        <ScrollView 
-          style={styles.menuContent}
-          contentContainerStyle={{ paddingBottom: 40 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={[styles.themeContainer, { 
-            backgroundColor: colors.SURFACE, 
-            marginTop: 16,
-            borderRadius: 16,
-            elevation: 1,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.08,
-            shadowRadius: 2,
-          }]}>
-            <Text variant="titleMedium" style={{ 
-              color: colors.TEXT.PRIMARY, 
-              marginBottom: 12,
-              fontWeight: '600',
-             }}>
-              Appearance
-            </Text>
-            
-            <View style={[styles.themeToggle, { backgroundColor: colors.SURFACE }]}>
-              <View style={styles.themeToggleContent}>
-                <MaterialCommunityIcons
-                  name={theme === 'dark' ? 'weather-night' : 'weather-sunny'}
-                  size={24}
-                  color={colors.TEXT.PRIMARY}
-                />
-                <Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY, flex: 1, marginLeft: 12 }}>
-                  Dark Mode
+                >
+                  Saner
                 </Text>
-                <Switch
-                  value={theme === 'dark'}
-                  onValueChange={toggleTheme}
-                  trackColor={{ false: '#767577', true: colors.TAB_BAR.ACTIVE }}
-                  thumbColor={theme === 'dark' ? colors.TAB_BAR.ACTIVE : '#f4f3f4'}
-                />
-              </View>
-            </View>
-            
-            <Divider style={{ marginVertical: 12, opacity: 0.6 }} />
-            
-            <Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY, marginBottom: 8, fontWeight: '500' }}>
-              Color Palette
-            </Text>
-            
-            <Menu
-              visible={paletteMenuVisible}
-              onDismiss={() => setPaletteMenuVisible(false)}
-              anchor={
-                <Pressable
-                  onPress={() => setPaletteMenuVisible(true)}
-                  style={[styles.dropdownButton, { 
-                    borderColor: colors.BORDER,
-                    backgroundColor: colors.BACKGROUND,
-                    borderRadius: 12,
-                  }]}
-                >
-                  <View style={styles.colorPreview}>
-                    <View style={[
-                      styles.colorSwatch, 
-                      { 
-                        backgroundColor: 
-                          palette === 'default' ? '#6B4DE6' :
-                          palette === 'citric' ? '#FFB347' :
-                          palette === 'mint' ? '#4AD66D' :
-                          palette === 'berry' ? '#FF6B6B' :
-                          '#2E86DE', // ocean
-                        borderWidth: 2,
-                        borderColor: colors.BACKGROUND,
-                        elevation: 2,
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 1 },
-                        shadowOpacity: 0.2,
-                        shadowRadius: 1.5,
-                      }
-                    ]} />
-                  </View>
-                  <Text style={{ 
-                    flex: 1, 
-                    color: colors.TEXT.PRIMARY,
-                    fontWeight: '500',
-                  }}>
-                    {formatPaletteName(palette)}
-                  </Text>
-                  <MaterialCommunityIcons name="chevron-down" size={24} color={colors.TEXT.SECONDARY} />
-                </Pressable>
-              }
-            >
-              <Menu.Item 
-                onPress={() => handlePaletteChange('default')} 
-                title="Default" 
-                leadingIcon={() => (
-                  <View style={[styles.colorSwatch, { 
-                    backgroundColor: '#6B4DE6', 
-                    width: 20, 
-                    height: 20, 
-                    borderRadius: 10,
-                    borderWidth: 2,
-                    borderColor: '#FFFFFF',
-                  }]} />
-                )}
-              />
-              <Menu.Item 
-                onPress={() => handlePaletteChange('citric')} 
-                title="Citric" 
-                leadingIcon={() => (
-                  <View style={[styles.colorSwatch, { 
-                    backgroundColor: '#FFB347', 
-                    width: 20, 
-                    height: 20, 
-                    borderRadius: 10,
-                    borderWidth: 2,
-                    borderColor: '#FFFFFF',
-                  }]} />
-                )}
-              />
-              <Menu.Item 
-                onPress={() => handlePaletteChange('mint')} 
-                title="Mint" 
-                leadingIcon={() => (
-                  <View style={[styles.colorSwatch, { 
-                    backgroundColor: '#4AD66D', 
-                    width: 20, 
-                    height: 20, 
-                    borderRadius: 10,
-                    borderWidth: 2,
-                    borderColor: '#FFFFFF',
-                  }]} />
-                )}
-              />
-              <Menu.Item 
-                onPress={() => handlePaletteChange('berry')} 
-                title="Berry" 
-                leadingIcon={() => (
-                  <View style={[styles.colorSwatch, { 
-                    backgroundColor: '#FF6B6B', 
-                    width: 20, 
-                    height: 20, 
-                    borderRadius: 10,
-                    borderWidth: 2,
-                    borderColor: '#FFFFFF',
-                  }]} />
-                )}
-              />
-              <Menu.Item 
-                onPress={() => handlePaletteChange('ocean')} 
-                title="Ocean" 
-                leadingIcon={() => (
-                  <View style={[styles.colorSwatch, { 
-                    backgroundColor: '#2E86DE', 
-                    width: 20, 
-                    height: 20, 
-                    borderRadius: 10,
-                    borderWidth: 2,
-                    borderColor: '#FFFFFF',
-                  }]} />
-                )}
-              />
-            </Menu>
-          </View>
+              ),
+              header: ({ route, options, navigation }) => {
+                const title = typeof options.headerTitle === 'function' 
+                  ? options.headerTitle({ children: route.name })
+                  : options.headerTitle || route.name;
+                
+                const right = options.headerRight ? 
+                  options.headerRight({ tintColor: colors.TEXT.PRIMARY, pressColor: colors.BORDER, canGoBack: navigation.canGoBack() }) 
+                  : null;
+                
+                return <CustomHeader title={title} right={right} />;
+              },
+              headerStyle: {
+                backgroundColor: 'transparent',
+                elevation: 0,
+                shadowOpacity: 0,
+              },
+              headerShadowVisible: false,
+              headerRight: () => (
+                <View style={{ 
+                  flexDirection: 'row', 
+                  alignItems: 'center',
+                }}>
+                  <IconButton
+                    icon="magnify"
+                    size={24}
+                    iconColor={colors.ICONS.PRIMARY}
+                    onPress={() => router.push('/(main)/search')}
+                    style={{ 
+                      marginRight: 4,
+                      backgroundColor: Platform.OS === 'ios' ? 
+                        (theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)') : 
+                        'transparent',
+                      borderRadius: 30,
+                      width: 40,
+                      height: 40,
+                    }}
+                  />
+                  {profile?.profile_pic_url ? (
+                    <Pressable
+                      onPress={toggleMenu}
+                      style={({ pressed }) => ({
+                        marginRight: 16,
+                        opacity: pressed ? 0.7 : 1,
+                        transform: [{ scale: pressed ? 0.95 : 1 }],
+                        borderRadius: 20,
+                        borderWidth: theme === 'dark' ? 1 : 0,
+                        borderColor: theme === 'dark' ? colors.BORDER : 'transparent',
+                        padding: 2,
+                      })}
+                    >
+                      <Avatar.Image
+                        size={32}
+                        source={{ uri: profile.profile_pic_url }}
+                      />
+                    </Pressable>
+                  ) : (
+                    <IconButton
+                      icon="account-circle-outline"
+                      size={28}
+                      iconColor={colors.ICONS.PRIMARY}
+                      onPress={toggleMenu}
+                      style={{ 
+                        marginRight: 8,
+                        backgroundColor: Platform.OS === 'ios' ? 
+                          (theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)') : 
+                          'transparent',
+                        borderRadius: 30,
+                        width: 40,
+                        height: 40,
+                      }}
+                    />
+                  )}
+                </View>
+              ),
+            }}
+          >
+            <Tabs.Screen
+              name="discover"
+              options={{
+                headerShown: true
+              }}
+            />
+            <Tabs.Screen
+              name="breath"
+              options={{
+                headerShown: true
+              }}
+            />
+            <Tabs.Screen
+              name="write"
+              options={{
+                headerShown: true
+              }}
+            />
+            <Tabs.Screen
+              name="chat"
+              options={{
+                headerShown: true
+              }}
+            />
+            <Tabs.Screen
+              name="profile"
+              options={{
+                headerShown: true
+              }}
+            />
+            <Tabs.Screen
+              name="index"
+              options={{
+                href: null
+              }}
+            />
+            <Tabs.Screen
+              name="wall-e"
+              options={{
+                href: null
+              }}
+            />
+            <Tabs.Screen
+              name="profile/edit"
+              options={{
+                href: null
+              }}
+            />
+            <Tabs.Screen
+              name="profile/posts"
+              options={{
+                href: null
+              }}
+            />
+            <Tabs.Screen
+              name="discover/create"
+              options={{
+                href: null
+              }}
+            />
+            <Tabs.Screen
+              name="discover/[id]"
+              options={{
+                href: null
+              }}
+            />
+            <Tabs.Screen
+              name="search"
+              options={{
+                href: null
+              }}
+            />
+            <Tabs.Screen
+              name="chat/[id]"
+              options={{
+                href: null
+              }}
+            />
+            <Tabs.Screen
+              name="profile/[id]"
+              options={{
+                href: null
+              }}
+            />
+          </Tabs>
 
-          {profile ? (
-            <>
-              <View style={styles.profileSection}>
-                <Avatar.Image
-                  size={80}
-                  source={{ uri: profile.profile_pic_url || 'https://i.pravatar.cc/300' }}
-                />
-                <Text
-                  variant="titleLarge"
-                  style={[styles.name, { color: colors.TEXT.PRIMARY }]}
-                >
-                  {profile.name || 'Anonymous'}
-                </Text>
-                <Text
-                  variant="bodyLarge"
-                  style={[styles.username, { color: colors.TEXT.SECONDARY }]}
-                >
-                  @{profile.username || 'username'}
-                </Text>
-              </View>
-
-              <View style={styles.actions}>
-                <Button
-                  mode="outlined"
-                  icon="account"
-                  onPress={() => {
-                    toggleMenu();
-                    router.push('/(main)/profile');
-                  }}
-                  style={styles.actionButton}
-                >
-                  Go to Profile
-                </Button>
-                <Button
-                  mode="outlined"
-                  icon="post"
-                  onPress={() => {
-                    toggleMenu();
-                    router.push('/(main)/profile/posts');
-                  }}
-                  style={styles.actionButton}
-                >
-                  My Posts
-                </Button>
-              </View>
-
-              <View style={styles.footer}>
-                <Button
-                  mode="contained"
-                  icon="logout"
-                  onPress={handleSignOut}
-                  style={[styles.signOutButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
-                >
-                  Sign Out
-                </Button>
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={styles.profileSection}>
-                <Avatar.Icon
-                  size={80}
-                  icon="account-circle"
-                  style={{ backgroundColor: colors.TAB_BAR.ACTIVE }}
-                />
-                <Text
-                  variant="titleLarge"
-                  style={[styles.name, { color: colors.TEXT.PRIMARY }]}
-                >
-                  Welcome to Saner
-                </Text>
-                <Text
-                  variant="bodyLarge"
-                  style={[styles.username, { color: colors.TEXT.SECONDARY, textAlign: 'center' }]}
-                >
-                  Sign in to access all features
-                </Text>
-              </View>
-
-              <View style={styles.footer}>
-                <Button
-                  mode="contained"
-                  icon="login"
-                  onPress={() => {
-                    toggleMenu();
-                    router.push('/(main)/profile');
-                  }}
-                  style={[styles.signInButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
-                >
-                  Sign In
-                </Button>
-              </View>
-            </>
+          {isMenuOpen && (
+            <Pressable
+              style={[styles.backdrop, { 
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              }]}
+              onPress={toggleMenu}
+            />
           )}
-        </ScrollView>
-      </Animated.View>
+
+          <Animated.View
+            style={[
+              styles.menu,
+              { 
+                backgroundColor: colors.BACKGROUND,
+                transform: [{ translateX: slideAnim }],
+                borderTopLeftRadius: Platform.OS === 'ios' ? 20 : 0,
+                borderBottomLeftRadius: Platform.OS === 'ios' ? 20 : 0,
+              },
+            ]}
+          >
+            <ScrollView 
+              style={styles.menuContent}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={[styles.themeContainer, { 
+                backgroundColor: colors.SURFACE, 
+                marginTop: 16,
+                borderRadius: 16,
+                elevation: 1,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.08,
+                shadowRadius: 2,
+              }]}>
+                <Text variant="titleMedium" style={{ 
+                  color: colors.TEXT.PRIMARY, 
+                  marginBottom: 12,
+                  fontWeight: '600',
+                 }}>
+                  Appearance
+                </Text>
+                
+                <View style={[styles.themeToggle, { backgroundColor: colors.SURFACE }]}>
+                  <View style={styles.themeToggleContent}>
+                    <MaterialCommunityIcons
+                      name={theme === 'dark' ? 'weather-night' : 'weather-sunny'}
+                      size={24}
+                      color={colors.TEXT.PRIMARY}
+                    />
+                    <Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY, flex: 1, marginLeft: 12 }}>
+                      Dark Mode
+                    </Text>
+                    <Switch
+                      value={theme === 'dark'}
+                      onValueChange={toggleTheme}
+                      trackColor={{ false: '#767577', true: colors.TAB_BAR.ACTIVE }}
+                      thumbColor={theme === 'dark' ? colors.TAB_BAR.ACTIVE : '#f4f3f4'}
+                    />
+                  </View>
+                </View>
+                
+                <Divider style={{ marginVertical: 12, opacity: 0.6 }} />
+                
+                <Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY, marginBottom: 8, fontWeight: '500' }}>
+                  Color Palette
+                </Text>
+                
+                <Menu
+                  visible={paletteMenuVisible}
+                  onDismiss={() => setPaletteMenuVisible(false)}
+                  anchor={
+                    <Pressable
+                      onPress={() => setPaletteMenuVisible(true)}
+                      style={[styles.dropdownButton, { 
+                        borderColor: colors.BORDER,
+                        backgroundColor: colors.BACKGROUND,
+                        borderRadius: 12,
+                      }]}
+                    >
+                      <View style={styles.colorPreview}>
+                        <View style={[
+                          styles.colorSwatch, 
+                          { 
+                            backgroundColor: 
+                              palette === 'default' ? '#6B4DE6' :
+                              palette === 'citric' ? '#FFB347' :
+                              palette === 'mint' ? '#4AD66D' :
+                              palette === 'berry' ? '#FF6B6B' :
+                              '#2E86DE', // ocean
+                            borderWidth: 2,
+                            borderColor: colors.BACKGROUND,
+                            elevation: 2,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 1 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 1.5,
+                          }
+                        ]} />
+                      </View>
+                      <Text style={{ 
+                        flex: 1, 
+                        color: colors.TEXT.PRIMARY,
+                        fontWeight: '500',
+                      }}>
+                        {formatPaletteName(palette)}
+                      </Text>
+                      <MaterialCommunityIcons name="chevron-down" size={24} color={colors.TEXT.SECONDARY} />
+                    </Pressable>
+                  }
+                >
+                  <Menu.Item 
+                    onPress={() => handlePaletteChange('default')} 
+                    title="Default" 
+                    leadingIcon={() => (
+                      <View style={[styles.colorSwatch, { 
+                        backgroundColor: '#6B4DE6', 
+                        width: 20, 
+                        height: 20, 
+                        borderRadius: 10,
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF',
+                      }]} />
+                    )}
+                  />
+                  <Menu.Item 
+                    onPress={() => handlePaletteChange('citric')} 
+                    title="Citric" 
+                    leadingIcon={() => (
+                      <View style={[styles.colorSwatch, { 
+                        backgroundColor: '#FFB347', 
+                        width: 20, 
+                        height: 20, 
+                        borderRadius: 10,
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF',
+                      }]} />
+                    )}
+                  />
+                  <Menu.Item 
+                    onPress={() => handlePaletteChange('mint')} 
+                    title="Mint" 
+                    leadingIcon={() => (
+                      <View style={[styles.colorSwatch, { 
+                        backgroundColor: '#4AD66D', 
+                        width: 20, 
+                        height: 20, 
+                        borderRadius: 10,
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF',
+                      }]} />
+                    )}
+                  />
+                  <Menu.Item 
+                    onPress={() => handlePaletteChange('berry')} 
+                    title="Berry" 
+                    leadingIcon={() => (
+                      <View style={[styles.colorSwatch, { 
+                        backgroundColor: '#FF6B6B', 
+                        width: 20, 
+                        height: 20, 
+                        borderRadius: 10,
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF',
+                      }]} />
+                    )}
+                  />
+                  <Menu.Item 
+                    onPress={() => handlePaletteChange('ocean')} 
+                    title="Ocean" 
+                    leadingIcon={() => (
+                      <View style={[styles.colorSwatch, { 
+                        backgroundColor: '#2E86DE', 
+                        width: 20, 
+                        height: 20, 
+                        borderRadius: 10,
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF',
+                      }]} />
+                    )}
+                  />
+                </Menu>
+              </View>
+
+              {profile ? (
+                <>
+                  <View style={styles.profileSection}>
+                    <Avatar.Image
+                      size={80}
+                      source={{ uri: profile.profile_pic_url || 'https://i.pravatar.cc/300' }}
+                    />
+                    <Text
+                      variant="titleLarge"
+                      style={[styles.name, { color: colors.TEXT.PRIMARY }]}
+                    >
+                      {profile.name || 'Anonymous'}
+                    </Text>
+                    <Text
+                      variant="bodyLarge"
+                      style={[styles.username, { color: colors.TEXT.SECONDARY }]}
+                    >
+                      @{profile.username || 'username'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.actions}>
+                    <Button
+                      mode="outlined"
+                      icon="account"
+                      onPress={() => {
+                        toggleMenu();
+                        router.push('/(main)/profile');
+                      }}
+                      style={styles.actionButton}
+                    >
+                      Go to Profile
+                    </Button>
+                    <Button
+                      mode="outlined"
+                      icon="post"
+                      onPress={() => {
+                        toggleMenu();
+                        router.push('/(main)/profile/posts');
+                      }}
+                      style={styles.actionButton}
+                    >
+                      My Posts
+                    </Button>
+                  </View>
+
+                  <View style={styles.footer}>
+                    <Button
+                      mode="contained"
+                      icon="logout"
+                      onPress={handleSignOut}
+                      style={[styles.signOutButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
+                    >
+                      Sign Out
+                    </Button>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.profileSection}>
+                    <Avatar.Icon
+                      size={80}
+                      icon="account-circle"
+                      style={{ backgroundColor: colors.TAB_BAR.ACTIVE }}
+                    />
+                    <Text
+                      variant="titleLarge"
+                      style={[styles.name, { color: colors.TEXT.PRIMARY }]}
+                    >
+                      Welcome to Saner
+                    </Text>
+                    <Text
+                      variant="bodyLarge"
+                      style={[styles.username, { color: colors.TEXT.SECONDARY, textAlign: 'center' }]}
+                    >
+                      Sign in to access all features
+                    </Text>
+                  </View>
+
+                  <View style={styles.footer}>
+                    <Button
+                      mode="contained"
+                      icon="login"
+                      onPress={() => {
+                        toggleMenu();
+                        router.push('/(main)/profile');
+                      }}
+                      style={[styles.signInButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
+                    >
+                      Sign In
+                    </Button>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+          </Animated.View>
+        </>
+      ) : (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -897,5 +905,14 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     marginRight: 12,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 }); 

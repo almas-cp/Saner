@@ -36,7 +36,7 @@ export const COLORS = {
     }
   },
   LIGHT: {
-    BACKGROUND: '#FFFFFF',       // Clean white background
+    BACKGROUND: '#f1f6f9',       // Light blue-gray background (was '#FFFFFF')
     SURFACE: '#F8F9FA',          // Very light gray for surfaces
     SURFACE_VARIANT: '#F1F3F5',  // Slightly darker for modals and cards
     CARD: '#FFFFFF',             // Pure white for cards with shadows
@@ -49,7 +49,7 @@ export const COLORS = {
     TAB_BAR: {
       ACTIVE: '#6B4DE6',          // Vibrant purple for active state
       INACTIVE: '#8A8A8A',        // Darker gray for inactive state
-      BACKGROUND: '#FFFFFF',      // White background for tab bar
+      BACKGROUND: '#f1f6f9',      // Updated to match main background
     },
     ICONS: {
       PRIMARY: '#6B4DE6',         // Primary brand color for icons

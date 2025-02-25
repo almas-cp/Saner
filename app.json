@@ -19,7 +19,8 @@
     ],
     "fonts": [
       {
-        "asset": "assets/fonts/Montserrat-Bold.ttf"
+        "asset": "assets/fonts/Montserrat-Bold.ttf",
+        "family": "Montserrat-Bold"
       }
     ]
   }
