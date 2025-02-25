@@ -1,5 +1,5 @@
 import { View, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
-import { Title, FAB, Card, Text, ActivityIndicator, Portal, Modal, Button, Avatar } from 'react-native-paper';
+import { Title, FAB, Card, Text, ActivityIndicator, Portal, Modal, Button, Avatar, Chip, SegmentedButtons } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
@@ -17,6 +17,7 @@ type Post = {
   author_name: string;
   author_username: string;
   author_profile_pic: string;
+  connection_status?: string | null;
 };
 
 export default function Discover() {
@@ -25,23 +26,30 @@ export default function Discover() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [filterValue, setFilterValue] = useState('all');
 
   useEffect(() => {
-    fetchPosts();
     checkAuth();
+    fetchPosts(filterValue);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       checkAuth();
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [filterValue]);
 
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     setIsAuthenticated(!!user);
+    if (user) {
+      setCurrentUserId(user.id);
+    } else {
+      setCurrentUserId(null);
+    }
   };
 
   const handleCreatePost = () => {
@@ -52,47 +60,175 @@ export default function Discover() {
     }
   };
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (filter: string = 'all') => {
     try {
+      setLoading(true);
       console.log('Fetching posts...');
-      const { data: posts, error: postsError } = await supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (postsError) throw postsError;
-
-      console.log('Posts data:', posts);
       
-      // Transform the data to match our Post type
-      const transformedPosts = posts?.map(post => ({
-        id: post.id,
-        title: post.title,
-        content: post.content || '',
-        image_url: post.image_url,
-        created_at: post.created_at,
-        user_id: post.user_id,
-        author_name: post.author_name || 'Anonymous',
-        author_username: post.author_username || '',
-        author_profile_pic: post.author_profile_pic || ''
-      })) || [];
-      
-      console.log('Transformed posts:', transformedPosts);
-      setPosts(transformedPosts);
+      if (!isAuthenticated || filter === 'all') {
+        // Public feed - no connection filtering
+        const { data: posts, error: postsError } = await supabase
+          .from('posts')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              name,
+              username,
+              profile_pic_url
+            )
+          `)
+          .order('created_at', { ascending: false });
+
+        if (postsError) throw postsError;
+        
+        const transformedPosts = processPostsData(posts, null);
+        setPosts(transformedPosts);
+      } else {
+        // Get posts with connection status for the logged-in user
+        let query = supabase
+          .from('posts')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              name,
+              username,
+              profile_pic_url
+            )
+          `);
+          
+        if (filter === 'connections') {
+          // Get only posts from users the current user is connected with (accepted status)
+          const { data: connections, error: connectionsError } = await supabase
+            .from('connections')
+            .select('target_id, requester_id, status')
+            .or(`requester_id.eq.${currentUserId},target_id.eq.${currentUserId}`)
+            .eq('status', 'accepted');
+            
+          if (connectionsError) throw connectionsError;
+          
+          // Extract the IDs of users the current user is connected with
+          const connectedUserIds = connections.map(conn => 
+            conn.requester_id === currentUserId ? conn.target_id : conn.requester_id
+          );
+          
+          if (connectedUserIds.length > 0) {
+            // Get posts only from connected users
+            query = query.in('user_id', connectedUserIds);
+          } else {
+            // No connections, return empty array
+            setPosts([]);
+            setLoading(false);
+            return;
+          }
+        }
+        
+        const { data: posts, error: postsError } = await query.order('created_at', { ascending: false });
+        if (postsError) throw postsError;
+        
+        // Get connection status for each post author
+        const { data: connections, error: connectionsError } = await supabase
+          .from('connections')
+          .select('target_id, requester_id, status')
+          .or(`requester_id.eq.${currentUserId},target_id.eq.${currentUserId}`);
+          
+        if (connectionsError) throw connectionsError;
+        
+        const transformedPosts = processPostsData(posts, connections);
+        setPosts(transformedPosts);
+      }
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {
       setLoading(false);
     }
   };
+  
+  const processPostsData = (posts: any[], connections: any[] | null) => {
+    return posts?.map(post => {
+      // Get connection status if connections data is available
+      let connectionStatus = null;
+      if (connections && currentUserId) {
+        const connection = connections.find(conn => 
+          (conn.requester_id === currentUserId && conn.target_id === post.user_id) ||
+          (conn.target_id === currentUserId && conn.requester_id === post.user_id)
+        );
+        
+        if (connection) {
+          connectionStatus = connection.status;
+        }
+      }
+      
+      return {
+        id: post.id,
+        title: post.title,
+        content: post.content || '',
+        image_url: post.image_url,
+        created_at: post.created_at,
+        user_id: post.user_id,
+        author_name: post.profiles?.name || post.author_name || 'Anonymous',
+        author_username: post.profiles?.username || post.author_username || '',
+        author_profile_pic: post.profiles?.profile_pic_url || post.author_profile_pic || '',
+        connection_status: connectionStatus
+      };
+    }) || [];
+  };
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    await fetchPosts();
+    await fetchPosts(filterValue);
     setRefreshing(false);
-  }, []);
+  }, [filterValue]);
 
-  if (loading) {
+  const renderConnectionBadge = (status: string | null | undefined) => {
+    if (!status || !isAuthenticated) return null;
+    
+    let color = '';
+    let icon = '';
+    let label = '';
+    
+    switch (status) {
+      case 'accepted':
+        color = '#4CAF50';
+        icon = 'account-check';
+        label = 'Connected';
+        break;
+      case 'pending':
+        color = '#FF9800';
+        icon = 'clock-outline';
+        label = 'Pending';
+        break;
+      case 'rejected':
+        color = '#F44336';
+        icon = 'close-circle-outline';
+        label = 'Rejected';
+        break;
+      default:
+        return null;
+    }
+    
+    return (
+      <Chip 
+        icon={icon} 
+        mode="outlined" 
+        style={{ 
+          backgroundColor: 'transparent', 
+          borderColor: color,
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          zIndex: 1,
+        }}
+        textStyle={{ color }}
+        compact
+      >
+        {label}
+      </Chip>
+    );
+  };
+
+  if (loading && posts.length === 0) {
     return (
       <View style={[styles.container, { backgroundColor: colors.BACKGROUND, justifyContent: 'center' }]}>
         <ActivityIndicator size="large" color={colors.TAB_BAR.ACTIVE} />
@@ -118,8 +254,28 @@ export default function Discover() {
         <Title style={[styles.title, { color: colors.TEXT.PRIMARY }]}>
           Discover
         </Title>
+        
+        {isAuthenticated && (
+          <SegmentedButtons
+            value={filterValue}
+            onValueChange={setFilterValue}
+            buttons={[
+              { value: 'all', label: 'All Posts' },
+              { value: 'connections', label: 'Connections' }
+            ]}
+            style={{ marginBottom: 16 }}
+          />
+        )}
 
-        {posts.length === 0 ? (
+        {loading && (
+          <ActivityIndicator 
+            size="small" 
+            color={colors.TAB_BAR.ACTIVE}
+            style={{ marginVertical: 16 }} 
+          />
+        )}
+
+        {posts.length === 0 && !loading ? (
           <View style={styles.emptyState}>
             <MaterialCommunityIcons
               name="post-outline"
@@ -128,7 +284,9 @@ export default function Discover() {
               style={{ marginBottom: 12, opacity: 0.6 }}
             />
             <Text variant="bodyLarge" style={{ color: colors.TEXT.SECONDARY, textAlign: 'center' }}>
-              No posts yet. Be the first to share!
+              {filterValue === 'connections' 
+                ? "No posts from your connections yet. Connect with more users to see their posts!"
+                : "No posts yet. Be the first to share!"}
             </Text>
           </View>
         ) : (
@@ -157,6 +315,8 @@ export default function Discover() {
                     shadowRadius: 4,
                   }}
                 >
+                  {renderConnectionBadge(post.connection_status)}
+                  
                   {post.image_url && (
                     <Card.Cover 
                       source={{ uri: post.image_url }} 
@@ -277,6 +437,7 @@ const styles = StyleSheet.create({
   },
   postCard: {
     marginBottom: 16,
+    position: 'relative',
   },
   cardTitle: {
     fontSize: 16,
@@ -301,15 +462,14 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
-    marginTop: 60,
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 20,
   },
   modalContainer: {
     padding: 24,
-    margin: 20,
+    marginHorizontal: 24,
     borderRadius: 16,
   },
-  // Add additional styles as needed
 }); 
