@@ -1,5 +1,5 @@
 import { View, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
-import { Title, FAB, Card, Text, ActivityIndicator, Portal, Modal, Button, Avatar, Chip, SegmentedButtons } from 'react-native-paper';
+import { Title, FAB, Card, Text, ActivityIndicator, Portal, Modal, Button, Avatar, Chip } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
@@ -29,18 +29,17 @@ export default function Discover() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [filterValue, setFilterValue] = useState('all');
 
   useEffect(() => {
     checkAuth();
-    fetchPosts(filterValue);
+    fetchPosts();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       checkAuth();
     });
 
     return () => subscription.unsubscribe();
-  }, [filterValue]);
+  }, []);
 
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -60,84 +59,42 @@ export default function Discover() {
     }
   };
 
-  const fetchPosts = async (filter: string = 'all') => {
+  const fetchPosts = async () => {
     try {
       setLoading(true);
       console.log('Fetching posts...');
       
-      if (!isAuthenticated || filter === 'all') {
-        // Public feed - no connection filtering
-        const { data: posts, error: postsError } = await supabase
-          .from('posts')
-          .select(`
-            *,
-            profiles:user_id (
-              id,
-              name,
-              username,
-              profile_pic_url
-            )
-          `)
-          .order('created_at', { ascending: false });
+      // Get all posts regardless of connection status
+      const { data: posts, error: postsError } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles:user_id (
+            id,
+            name,
+            username,
+            profile_pic_url
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-        if (postsError) throw postsError;
-        
-        const transformedPosts = processPostsData(posts, null);
-        setPosts(transformedPosts);
-      } else {
-        // Get posts with connection status for the logged-in user
-        let query = supabase
-          .from('posts')
-          .select(`
-            *,
-            profiles:user_id (
-              id,
-              name,
-              username,
-              profile_pic_url
-            )
-          `);
-          
-        if (filter === 'connections') {
-          // Get only posts from users the current user is connected with (accepted status)
-          const { data: connections, error: connectionsError } = await supabase
-            .from('connections')
-            .select('target_id, requester_id, status')
-            .or(`requester_id.eq.${currentUserId},target_id.eq.${currentUserId}`)
-            .eq('status', 'accepted');
-            
-          if (connectionsError) throw connectionsError;
-          
-          // Extract the IDs of users the current user is connected with
-          const connectedUserIds = connections.map(conn => 
-            conn.requester_id === currentUserId ? conn.target_id : conn.requester_id
-          );
-          
-          if (connectedUserIds.length > 0) {
-            // Get posts only from connected users
-            query = query.in('user_id', connectedUserIds);
-          } else {
-            // No connections, return empty array
-            setPosts([]);
-            setLoading(false);
-            return;
-          }
-        }
-        
-        const { data: posts, error: postsError } = await query.order('created_at', { ascending: false });
-        if (postsError) throw postsError;
-        
-        // Get connection status for each post author
-        const { data: connections, error: connectionsError } = await supabase
+      if (postsError) throw postsError;
+      
+      // If user is authenticated, get connection status for display purposes
+      let connections = null;
+      if (isAuthenticated && currentUserId) {
+        const { data: connectionsData, error: connectionsError } = await supabase
           .from('connections')
           .select('target_id, requester_id, status')
           .or(`requester_id.eq.${currentUserId},target_id.eq.${currentUserId}`);
           
-        if (connectionsError) throw connectionsError;
-        
-        const transformedPosts = processPostsData(posts, connections);
-        setPosts(transformedPosts);
+        if (!connectionsError) {
+          connections = connectionsData;
+        }
       }
+      
+      const transformedPosts = processPostsData(posts, connections);
+      setPosts(transformedPosts);
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {
@@ -177,9 +134,9 @@ export default function Discover() {
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    await fetchPosts(filterValue);
+    await fetchPosts();
     setRefreshing(false);
-  }, [filterValue]);
+  }, []);
 
   const renderConnectionBadge = (status: string | null | undefined) => {
     if (!status || !isAuthenticated) return null;
@@ -254,18 +211,6 @@ export default function Discover() {
         <Title style={[styles.title, { color: colors.TEXT.PRIMARY }]}>
           Discover
         </Title>
-        
-        {isAuthenticated && (
-          <SegmentedButtons
-            value={filterValue}
-            onValueChange={setFilterValue}
-            buttons={[
-              { value: 'all', label: 'All Posts' },
-              { value: 'connections', label: 'Connections' }
-            ]}
-            style={{ marginBottom: 16 }}
-          />
-        )}
 
         {loading && (
           <ActivityIndicator 
@@ -284,9 +229,7 @@ export default function Discover() {
               style={{ marginBottom: 12, opacity: 0.6 }}
             />
             <Text variant="bodyLarge" style={{ color: colors.TEXT.SECONDARY, textAlign: 'center' }}>
-              {filterValue === 'connections' 
-                ? "No posts from your connections yet. Connect with more users to see their posts!"
-                : "No posts yet. Be the first to share!"}
+              No posts yet. Be the first to share!
             </Text>
           </View>
         ) : (
