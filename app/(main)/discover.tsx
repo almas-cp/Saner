@@ -1,5 +1,5 @@
 import { View, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
-import { Title, FAB, Card, Text, ActivityIndicator, Portal, Modal, Button, Avatar, Chip } from 'react-native-paper';
+import { Title, FAB, Card, Text, ActivityIndicator, Portal, Modal, Button, Avatar } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
@@ -17,7 +17,6 @@ type Post = {
   author_name: string;
   author_username: string;
   author_profile_pic: string;
-  connection_status?: string | null;
 };
 
 export default function Discover() {
@@ -80,20 +79,7 @@ export default function Discover() {
 
       if (postsError) throw postsError;
       
-      // If user is authenticated, get connection status for display purposes
-      let connections = null;
-      if (isAuthenticated && currentUserId) {
-        const { data: connectionsData, error: connectionsError } = await supabase
-          .from('connections')
-          .select('target_id, requester_id, status')
-          .or(`requester_id.eq.${currentUserId},target_id.eq.${currentUserId}`);
-          
-        if (!connectionsError) {
-          connections = connectionsData;
-        }
-      }
-      
-      const transformedPosts = processPostsData(posts, connections);
+      const transformedPosts = processPostsData(posts);
       setPosts(transformedPosts);
     } catch (error) {
       console.error('Error fetching posts:', error);
@@ -102,21 +88,8 @@ export default function Discover() {
     }
   };
   
-  const processPostsData = (posts: any[], connections: any[] | null) => {
+  const processPostsData = (posts: any[]) => {
     return posts?.map(post => {
-      // Get connection status if connections data is available
-      let connectionStatus = null;
-      if (connections && currentUserId) {
-        const connection = connections.find(conn => 
-          (conn.requester_id === currentUserId && conn.target_id === post.user_id) ||
-          (conn.target_id === currentUserId && conn.requester_id === post.user_id)
-        );
-        
-        if (connection) {
-          connectionStatus = connection.status;
-        }
-      }
-      
       return {
         id: post.id,
         title: post.title,
@@ -126,8 +99,7 @@ export default function Discover() {
         user_id: post.user_id,
         author_name: post.profiles?.name || post.author_name || 'Anonymous',
         author_username: post.profiles?.username || post.author_username || '',
-        author_profile_pic: post.profiles?.profile_pic_url || post.author_profile_pic || '',
-        connection_status: connectionStatus
+        author_profile_pic: post.profiles?.profile_pic_url || post.author_profile_pic || ''
       };
     }) || [];
   };
@@ -137,53 +109,6 @@ export default function Discover() {
     await fetchPosts();
     setRefreshing(false);
   }, []);
-
-  const renderConnectionBadge = (status: string | null | undefined) => {
-    if (!status || !isAuthenticated) return null;
-    
-    let color = '';
-    let icon = '';
-    let label = '';
-    
-    switch (status) {
-      case 'accepted':
-        color = '#4CAF50';
-        icon = 'account-check';
-        label = 'Connected';
-        break;
-      case 'pending':
-        color = '#FF9800';
-        icon = 'clock-outline';
-        label = 'Pending';
-        break;
-      case 'rejected':
-        color = '#F44336';
-        icon = 'close-circle-outline';
-        label = 'Rejected';
-        break;
-      default:
-        return null;
-    }
-    
-    return (
-      <Chip 
-        icon={icon} 
-        mode="outlined" 
-        style={{ 
-          backgroundColor: 'transparent', 
-          borderColor: color,
-          position: 'absolute',
-          top: 8,
-          right: 8,
-          zIndex: 1,
-        }}
-        textStyle={{ color }}
-        compact
-      >
-        {label}
-      </Chip>
-    );
-  };
 
   if (loading && posts.length === 0) {
     return (
@@ -258,8 +183,6 @@ export default function Discover() {
                     shadowRadius: 4,
                   }}
                 >
-                  {renderConnectionBadge(post.connection_status)}
-                  
                   {post.image_url && (
                     <Card.Cover 
                       source={{ uri: post.image_url }} 
@@ -283,12 +206,19 @@ export default function Discover() {
                       />
                     }
                   />
-                  <Card.Content style={{ paddingHorizontal: 16, paddingBottom: 16, paddingTop: 0 }}>
+                  <Card.Content style={{ paddingHorizontal: 16, paddingBottom: 16, paddingTop: 0, position: 'relative' }}>
                     <Text 
-                      style={{ color: colors.TEXT.SECONDARY }}
-                      numberOfLines={2}
+                      style={{ 
+                        color: colors.TEXT.SECONDARY, 
+                        fontSize: 12,
+                        position: 'absolute',
+                        bottom: 16,
+                        right: 16,
+                        fontStyle: 'italic',
+                        opacity: 0.8
+                      }}
                     >
-                      {post.content.substring(0, 100)}{post.content.length > 100 ? '...' : ''}
+                      {new Date(post.created_at).toLocaleDateString()}
                     </Text>
                   </Card.Content>
                 </Card>

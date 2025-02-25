@@ -1,4 +1,4 @@
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, Pressable } from 'react-native';
 import { Text, Avatar, Button, ActivityIndicator, Chip, Divider } from 'react-native-paper';
 import { useTheme } from '../../../src/contexts/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -295,23 +295,33 @@ export default function UserProfile() {
           </View>
         ) : (
           posts.map((post) => (
-            <MotiView
+            <Pressable
               key={post.id}
-              from={{ opacity: 0, translateY: 20 }}
-              animate={{ opacity: 1, translateY: 0 }}
-              transition={{ type: 'timing', duration: 500 }}
-              style={[styles.postCard, { backgroundColor: colors.SURFACE }]}
+              style={({ pressed }) => [
+                { 
+                  opacity: pressed ? 0.9 : 1,
+                  transform: [{ scale: pressed ? 0.98 : 1 }]
+                }
+              ]}
+              onPress={() => router.push(`/(main)/discover/${post.id}`)}
             >
-              <Text variant="titleMedium" style={{ color: colors.TEXT.PRIMARY }}>
-                {post.title}
-              </Text>
-              <Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>
-                {post.content.length > 150 ? `${post.content.substring(0, 150)}...` : post.content}
-              </Text>
-              <Text variant="bodySmall" style={{ color: colors.TEXT.SECONDARY, marginTop: 8 }}>
-                {new Date(post.created_at).toLocaleDateString()}
-              </Text>
-            </MotiView>
+              <MotiView
+                from={{ opacity: 0, translateY: 20 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'timing', duration: 500 }}
+                style={[styles.postCard, { backgroundColor: colors.SURFACE }]}
+              >
+                <Text variant="titleMedium" style={{ color: colors.TEXT.PRIMARY }}>
+                  {post.title}
+                </Text>
+                <Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>
+                  {post.content.length > 150 ? `${post.content.substring(0, 150)}...` : post.content}
+                </Text>
+                <Text variant="bodySmall" style={{ color: colors.TEXT.SECONDARY, marginTop: 8 }}>
+                  {new Date(post.created_at).toLocaleDateString()}
+                </Text>
+              </MotiView>
+            </Pressable>
           ))
         )}
       </View>
