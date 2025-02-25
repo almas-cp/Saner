@@ -39,6 +39,13 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
       paddingTop: 12,
       elevation: 0,
       shadowColor: 'transparent',
+      // Add subtle shadow for iOS
+      ...(Platform.OS === 'ios' ? {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+      } : {}),
     }}>
       {visibleRoutes.map((route: any, index: number) => {
         const { options } = descriptors[route.key];
@@ -79,16 +86,33 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
               style={{
                 alignItems: 'center',
                 justifyContent: 'center',
-                transform: [{ scale: isFocused ? 1.15 : 1 }],
+                position: 'relative',
+                transform: [{ 
+                  scale: isFocused ? 1.15 : 1 
+                }],
               }}
             >
+              {isFocused && (
+                <Animated.View 
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    left: -9,
+                    right: -9,
+                    bottom: -4,
+                    backgroundColor: colors.TAB_BAR.ACTIVE + '15', // Add transparency
+                    borderRadius: 12,
+                    zIndex: -1,
+                  }}
+                />
+              )}
               <MaterialCommunityIcons
                 name={TAB_ICONS[route.name as keyof typeof TAB_ICONS]}
-                size={22}
+                size={24}
                 color={isFocused ? colors.TAB_BAR.ACTIVE : colors.TAB_BAR.INACTIVE}
                 style={{
-                  marginBottom: 4,
-                  opacity: isFocused ? 1 : 0.8
+                  marginBottom: 3,
+                  opacity: isFocused ? 1 : 0.7,
                 }}
               />
               <Text
@@ -96,12 +120,25 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
                   color: isFocused ? colors.TAB_BAR.ACTIVE : colors.TAB_BAR.INACTIVE,
                   fontSize: 11,
                   fontWeight: isFocused ? '600' : '400',
-                  opacity: isFocused ? 1 : 0.8,
+                  opacity: isFocused ? 1 : 0.7,
                   letterSpacing: 0.3,
                 }}
               >
                 {label}
               </Text>
+              {isFocused && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    width: 4,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: colors.TAB_BAR.ACTIVE,
+                    elevation: 2,
+                  }}
+                />
+              )}
             </Animated.View>
           </Pressable>
         );
@@ -316,7 +353,9 @@ export default function MainLayout() {
 
       {isMenuOpen && (
         <Pressable
-          style={[styles.backdrop, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}
+          style={[styles.backdrop, { 
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          }]}
           onPress={toggleMenu}
         />
       )}
@@ -326,7 +365,9 @@ export default function MainLayout() {
           styles.menu,
           { 
             backgroundColor: colors.BACKGROUND,
-            transform: [{ translateX: slideAnim }] 
+            transform: [{ translateX: slideAnim }],
+            borderTopLeftRadius: Platform.OS === 'ios' ? 20 : 0,
+            borderBottomLeftRadius: Platform.OS === 'ios' ? 20 : 0,
           },
         ]}
       >
@@ -335,8 +376,21 @@ export default function MainLayout() {
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.themeContainer, { backgroundColor: colors.SURFACE, marginTop: 16 }]}>
-            <Text variant="titleMedium" style={{ color: colors.TEXT.PRIMARY, marginBottom: 12 }}>
+          <View style={[styles.themeContainer, { 
+            backgroundColor: colors.SURFACE, 
+            marginTop: 16,
+            borderRadius: 16,
+            elevation: 1,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.08,
+            shadowRadius: 2,
+          }]}>
+            <Text variant="titleMedium" style={{ 
+              color: colors.TEXT.PRIMARY, 
+              marginBottom: 12,
+              fontWeight: '600',
+             }}>
               Appearance
             </Text>
             
@@ -359,9 +413,9 @@ export default function MainLayout() {
               </View>
             </View>
             
-            <Divider style={{ marginVertical: 12 }} />
+            <Divider style={{ marginVertical: 12, opacity: 0.6 }} />
             
-            <Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY, marginBottom: 8 }}>
+            <Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY, marginBottom: 8, fontWeight: '500' }}>
               Color Palette
             </Text>
             
@@ -371,7 +425,11 @@ export default function MainLayout() {
               anchor={
                 <Pressable
                   onPress={() => setPaletteMenuVisible(true)}
-                  style={[styles.dropdownButton, { borderColor: colors.BORDER }]}
+                  style={[styles.dropdownButton, { 
+                    borderColor: colors.BORDER,
+                    backgroundColor: colors.BACKGROUND,
+                    borderRadius: 12,
+                  }]}
                 >
                   <View style={styles.colorPreview}>
                     <View style={[
@@ -382,11 +440,22 @@ export default function MainLayout() {
                           colorPalette === 'citric' ? '#FFB347' :
                           colorPalette === 'mint' ? '#4AD66D' :
                           colorPalette === 'berry' ? '#FF6B6B' :
-                          '#2E86DE' // ocean
+                          '#2E86DE', // ocean
+                        borderWidth: 2,
+                        borderColor: colors.BACKGROUND,
+                        elevation: 2,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 1.5,
                       }
                     ]} />
                   </View>
-                  <Text style={{ flex: 1, color: colors.TEXT.PRIMARY }}>
+                  <Text style={{ 
+                    flex: 1, 
+                    color: colors.TEXT.PRIMARY,
+                    fontWeight: '500',
+                  }}>
                     {colorPalette.charAt(0).toUpperCase() + colorPalette.slice(1)}
                   </Text>
                   <MaterialCommunityIcons name="chevron-down" size={24} color={colors.TEXT.SECONDARY} />
@@ -397,35 +466,70 @@ export default function MainLayout() {
                 onPress={() => handlePaletteChange('default')} 
                 title="Default" 
                 leadingIcon={() => (
-                  <View style={[styles.colorSwatch, { backgroundColor: '#6B4DE6', width: 20, height: 20, borderRadius: 10 }]} />
+                  <View style={[styles.colorSwatch, { 
+                    backgroundColor: '#6B4DE6', 
+                    width: 20, 
+                    height: 20, 
+                    borderRadius: 10,
+                    borderWidth: 2,
+                    borderColor: '#FFFFFF',
+                  }]} />
                 )}
               />
               <Menu.Item 
                 onPress={() => handlePaletteChange('citric')} 
                 title="Citric" 
                 leadingIcon={() => (
-                  <View style={[styles.colorSwatch, { backgroundColor: '#FFB347', width: 20, height: 20, borderRadius: 10 }]} />
+                  <View style={[styles.colorSwatch, { 
+                    backgroundColor: '#FFB347', 
+                    width: 20, 
+                    height: 20, 
+                    borderRadius: 10,
+                    borderWidth: 2,
+                    borderColor: '#FFFFFF',
+                  }]} />
                 )}
               />
               <Menu.Item 
                 onPress={() => handlePaletteChange('mint')} 
                 title="Mint" 
                 leadingIcon={() => (
-                  <View style={[styles.colorSwatch, { backgroundColor: '#4AD66D', width: 20, height: 20, borderRadius: 10 }]} />
+                  <View style={[styles.colorSwatch, { 
+                    backgroundColor: '#4AD66D', 
+                    width: 20, 
+                    height: 20, 
+                    borderRadius: 10,
+                    borderWidth: 2,
+                    borderColor: '#FFFFFF',
+                  }]} />
                 )}
               />
               <Menu.Item 
                 onPress={() => handlePaletteChange('berry')} 
                 title="Berry" 
                 leadingIcon={() => (
-                  <View style={[styles.colorSwatch, { backgroundColor: '#FF6B6B', width: 20, height: 20, borderRadius: 10 }]} />
+                  <View style={[styles.colorSwatch, { 
+                    backgroundColor: '#FF6B6B', 
+                    width: 20, 
+                    height: 20, 
+                    borderRadius: 10,
+                    borderWidth: 2,
+                    borderColor: '#FFFFFF',
+                  }]} />
                 )}
               />
               <Menu.Item 
                 onPress={() => handlePaletteChange('ocean')} 
                 title="Ocean" 
                 leadingIcon={() => (
-                  <View style={[styles.colorSwatch, { backgroundColor: '#2E86DE', width: 20, height: 20, borderRadius: 10 }]} />
+                  <View style={[styles.colorSwatch, { 
+                    backgroundColor: '#2E86DE', 
+                    width: 20, 
+                    height: 20, 
+                    borderRadius: 10,
+                    borderWidth: 2,
+                    borderColor: '#FFFFFF',
+                  }]} />
                 )}
               />
             </Menu>
@@ -561,6 +665,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 40,
     marginBottom: 32,
+    borderRadius: 16,
+    padding: 20,
+    marginHorizontal: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   name: {
     marginTop: 16,

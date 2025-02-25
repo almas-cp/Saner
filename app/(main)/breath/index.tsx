@@ -1,10 +1,11 @@
-import { View, StyleSheet, Dimensions, Pressable, Modal, Animated } from 'react-native';
-import { Text, Title, Subheading, Caption, IconButton } from 'react-native-paper';
+import { View, StyleSheet, Dimensions, Pressable, Modal, Animated, ScrollView, SafeAreaView } from 'react-native';
+import { Text, Title, Subheading, Caption, IconButton, Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../../src/contexts/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
 import React, { useState, useRef, useEffect } from 'react';
+import { COLORS } from '../../../src/styles/theme';
 
 type Exercise = {
   id: string;
@@ -67,69 +68,100 @@ const exercises: Exercise[] = [
 
 function MoodSlider() {
   const { colors } = useTheme();
-  const [mood, setMood] = React.useState(0.5);
+  const [mood, setMood] = useState(50);
+  const [submitted, setSubmitted] = useState(false);
 
   const getMoodEmoji = (value: number) => {
-    if (value < 0.3) return { icon: 'emoticon-sad-outline' as const, color: '#FF6B6B', text: 'Not great' };
-    if (value < 0.7) return { icon: 'emoticon-neutral-outline' as const, color: '#FFB347', text: 'Okay' };
+    if (value < 30) return { icon: 'emoticon-sad-outline' as const, color: '#FF6B6B', text: 'Not great' };
+    if (value < 70) return { icon: 'emoticon-neutral-outline' as const, color: '#FFB347', text: 'Okay' };
     return { icon: 'emoticon-happy-outline' as const, color: '#4AD66D', text: 'Great' };
   };
 
   const currentMood = getMoodEmoji(mood);
   
+  const handleSubmit = () => {
+    setSubmitted(true);
+  };
+
   return (
-    <View style={[styles.moodContainer, { backgroundColor: colors.SURFACE }]}>
-      <View style={styles.moodHeader}>
-        <Subheading style={[styles.moodTitle, { color: colors.TEXT.PRIMARY }]}>
-          How are you feeling?
-        </Subheading>
-        <Caption style={[styles.moodValue, { color: currentMood.color }]}>
-          {currentMood.text}
-        </Caption>
-      </View>
-
-      <View style={styles.sliderContainer}>
-        <MaterialCommunityIcons 
-          name="emoticon-sad-outline" 
-          size={24} 
-          color="#FF6B6B"
-          style={styles.moodIcon}
-        />
-        <View style={styles.sliderWrapper}>
-          <LinearGradient
-            colors={['#FF6B6B', '#FFB347', '#4AD66D']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.gradient}
-          />
-          <Slider
-            style={styles.slider}
-            value={mood}
-            onValueChange={setMood}
-            minimumValue={0}
-            maximumValue={1}
-            minimumTrackTintColor="transparent"
-            maximumTrackTintColor="transparent"
-            thumbTintColor="#fff"
-            tapToSeek={true}
-          />
-        </View>
-        <MaterialCommunityIcons 
-          name="emoticon-happy-outline" 
-          size={24} 
-          color="#4AD66D"
-          style={styles.moodIcon}
-        />
-      </View>
-
-      <View style={styles.moodIndicator}>
-        <MaterialCommunityIcons 
+    <View style={[
+      styles.moodContainer, 
+      { 
+        backgroundColor: colors.CARD,
+        borderRadius: 20,
+        marginHorizontal: 16,
+        marginBottom: 16,
+        padding: 16,
+        shadowColor: colors.TEXT.PRIMARY,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
+        borderWidth: 0.5,
+        borderColor: colors.BORDER,
+      }
+    ]}>
+      <Text style={[styles.sectionTitle, { 
+        color: colors.TEXT.PRIMARY, 
+        textAlign: 'center'
+      }]}>
+        How are you feeling today?
+      </Text>
+      
+      <View style={styles.moodEmoji}>
+        <MaterialCommunityIcons
           name={currentMood.icon}
-          size={32}
+          size={48}
           color={currentMood.color}
-          style={styles.currentMoodIcon}
+          style={{ marginBottom: 8 }}
         />
+        <Text style={{ 
+          fontSize: 18, 
+          color: currentMood.color,
+          fontWeight: '500'
+        }}>
+          {currentMood.text}
+        </Text>
       </View>
+      
+      <View style={styles.sliderContainer}>
+        <LinearGradient
+          colors={COLORS.GRADIENT.MOOD}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={styles.gradientTrack}
+        />
+        
+        <Slider
+          style={styles.slider}
+          value={mood}
+          minimumValue={0}
+          maximumValue={100}
+          minimumTrackTintColor="transparent"
+          maximumTrackTintColor="transparent"
+          thumbTintColor={colors.TAB_BAR.ACTIVE}
+          onValueChange={setMood}
+        />
+        
+        <View style={styles.emojiLabels}>
+          <Text style={{ color: colors.TEXT.SECONDARY }}>😞</Text>
+          <Text style={{ color: colors.TEXT.SECONDARY }}>😊</Text>
+        </View>
+      </View>
+      
+      {!submitted ? (
+        <Button
+          onPress={handleSubmit}
+          mode="contained"
+          style={[styles.moodButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
+        >
+          Log Mood
+        </Button>
+      ) : (
+        <Text style={[styles.thankYouText, { color: colors.TAB_BAR.ACTIVE }]}>
+          Thanks for sharing! 🙏
+        </Text>
+      )}
     </View>
   );
 }
@@ -299,7 +331,7 @@ function ExerciseModal({ exercise, visible, onClose }: {
                 <Subheading style={{ color: colors.TEXT.PRIMARY }}>
                   {getPhaseText()}
                 </Subheading>
-                <Title style={{ color: colors.TEXT.PRIMARY }}>{timeLeft}s</Title>
+                <Title style={{ color: colors.TEXT.PRIMARY, fontSize: 32 }}>{timeLeft}s</Title>
                 {hasStarted && (
                   <Caption style={{ color: colors.TEXT.SECONDARY, marginTop: 4 }}>
                     Cycle {totalCycles + 1}/3
@@ -346,36 +378,47 @@ function ExerciseModal({ exercise, visible, onClose }: {
 
 function ExerciseCard({ exercise, onPress }: { exercise: Exercise; onPress: () => void }) {
   const { colors } = useTheme();
-
+  
   return (
     <Pressable 
+      onPress={onPress}
       style={({ pressed }) => [
-        styles.card,
-        { 
+        styles.exerciseCard,
+        {
           backgroundColor: colors.CARD,
-          opacity: pressed ? 0.9 : 1,
+          borderRadius: 20,
+          shadowColor: colors.TEXT.PRIMARY,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          elevation: 3,
+          borderWidth: 0.5,
+          borderColor: colors.BORDER,
           transform: [{ scale: pressed ? 0.98 : 1 }],
+          opacity: pressed ? 0.9 : 1,
         }
       ]}
-      onPress={onPress}
     >
-      <View style={[styles.iconContainer, { backgroundColor: colors.SURFACE }]}>
-        <MaterialCommunityIcons 
-          name={exercise.icon} 
-          size={32} 
-          color={colors.TAB_BAR.ACTIVE}
-        />
+      <View style={styles.exerciseCardContent}>
+        <View style={[
+          styles.iconContainer,
+          { backgroundColor: colors.TAB_BAR.ACTIVE + '20' }
+        ]}>
+          <MaterialCommunityIcons
+            name={exercise.icon}
+            size={30}
+            color={colors.TAB_BAR.ACTIVE}
+          />
+        </View>
+        <View style={styles.exerciseInfo}>
+          <Text style={[styles.exerciseName, { color: colors.TEXT.PRIMARY }]}>
+            {exercise.name}
+          </Text>
+          <Text style={[styles.exerciseDescription, { color: colors.TEXT.SECONDARY }]}>
+            {exercise.description}
+          </Text>
+        </View>
       </View>
-      <Subheading 
-        style={[styles.cardTitle, { color: colors.TEXT.PRIMARY }]}
-      >
-        {exercise.name}
-      </Subheading>
-      <Caption 
-        style={[styles.cardDescription, { color: colors.TEXT.SECONDARY }]}
-      >
-        {exercise.description}
-      </Caption>
     </Pressable>
   );
 }
@@ -385,168 +428,147 @@ export default function Breath() {
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
-      <View style={styles.content}>
-        <Title 
-          style={[styles.title, { color: colors.TEXT.PRIMARY }]}
-        >
-          Breathing Exercises
-        </Title>
-        <View style={styles.grid}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.header}>
+          <Title 
+            style={[styles.pageTitle, { color: colors.TEXT.PRIMARY }]}
+          >
+            Breathing Exercises
+          </Title>
+          <Text style={[styles.pageSubtitle, { color: colors.TEXT.SECONDARY }]}>
+            Calm your mind with these guided exercises
+          </Text>
+        </View>
+
+        <Text style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
+          Exercises
+        </Text>
+        
+        <View style={styles.exercisesGrid}>
           {exercises.map((exercise) => (
-            <View key={exercise.id} style={styles.cardContainer}>
-              <ExerciseCard
-                exercise={exercise}
-                onPress={() => setSelectedExercise(exercise)}
-              />
-            </View>
+            <ExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              onPress={() => setSelectedExercise(exercise)}
+            />
           ))}
         </View>
-      </View>
-      <MoodSlider />
+
+        <Text style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY, marginTop: 24 }]}>
+          Mood Tracker
+        </Text>
+        
+        <MoodSlider />
+      </ScrollView>
       
       <ExerciseModal
         exercise={selectedExercise}
         visible={!!selectedExercise}
         onClose={() => setSelectedExercise(null)}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const { width } = Dimensions.get('window');
-const GRID_PADDING = 16;
-const GRID_SPACING = 12;
-const CARD_SIZE = (width - (GRID_PADDING * 2) - GRID_SPACING) / 2;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
-    flex: 1,
-    padding: GRID_PADDING,
+  scrollContent: {
+    paddingBottom: 100,
   },
-  title: {
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: GRID_SPACING,
-  },
-  cardContainer: {
-    width: CARD_SIZE,
-    height: CARD_SIZE,
-  },
-  card: {
-    flex: 1,
-    borderRadius: 16,
+  header: {
     padding: 16,
+    paddingBottom: 8,
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  pageSubtitle: {
+    fontSize: 16,
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  exercisesGrid: {
+    paddingHorizontal: 16,
+  },
+  exerciseCard: {
+    marginBottom: 16,
+    padding: 16,
+  },
+  exerciseCardContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
   },
   iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
+    width: 60,
+    height: 60,
+    borderRadius: 18,
     justifyContent: 'center',
-    marginBottom: 12,
+    alignItems: 'center',
+    marginRight: 16,
   },
-  cardTitle: {
-    textAlign: 'center',
+  exerciseInfo: {
+    flex: 1,
+  },
+  exerciseName: {
+    fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,
   },
-  cardDescription: {
-    textAlign: 'center',
+  exerciseDescription: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   moodContainer: {
-    padding: 20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 8,
+    margin: 16,
   },
-  moodHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  moodEmoji: {
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  moodTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  moodValue: {
-    fontSize: 14,
-    fontWeight: '500',
+    marginVertical: 16,
   },
   sliderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: 8,
     marginBottom: 16,
-    paddingHorizontal: 12,
   },
-  moodIcon: {
-    width: 24,
-    height: 24,
-  },
-  sliderWrapper: {
-    flex: 1,
-    height: 40,
-    marginHorizontal: 12,
-    position: 'relative',
-  },
-  gradient: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 18,
-    height: 4,
-    borderRadius: 2,
+  gradientTrack: {
+    height: 6,
+    borderRadius: 3,
+    width: '100%',
+    marginVertical: 16,
   },
   slider: {
     width: '100%',
     height: 40,
+    marginTop: -30,
   },
-  sliderThumb: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+  emojiLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: -10,
   },
-  moodIndicator: {
-    alignItems: 'center',
-    marginTop: 8,
+  moodButton: {
+    borderRadius: 8,
+    paddingVertical: 4,
   },
-  currentMoodIcon: {
-    marginTop: 4,
+  thankYouText: {
+    textAlign: 'center',
+    marginTop: 16,
+    fontWeight: '500',
   },
   modalOverlay: {
     flex: 1,

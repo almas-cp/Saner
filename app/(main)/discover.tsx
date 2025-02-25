@@ -104,6 +104,7 @@ export default function Discover() {
     <View style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
       <ScrollView 
         style={styles.content}
+        contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -120,7 +121,13 @@ export default function Discover() {
 
         {posts.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text variant="bodyLarge" style={{ color: colors.TEXT.SECONDARY }}>
+            <MaterialCommunityIcons
+              name="post-outline"
+              size={48}
+              color={colors.TEXT.SECONDARY}
+              style={{ marginBottom: 12, opacity: 0.6 }}
+            />
+            <Text variant="bodyLarge" style={{ color: colors.TEXT.SECONDARY, textAlign: 'center' }}>
               No posts yet. Be the first to share!
             </Text>
           </View>
@@ -131,38 +138,56 @@ export default function Discover() {
                 key={post.id}
                 style={({ pressed }) => [
                   styles.postCard,
-                  { opacity: pressed ? 0.9 : 1 }
+                  { 
+                    opacity: pressed ? 0.9 : 1,
+                    transform: [{ scale: pressed ? 0.98 : 1 }]
+                  }
                 ]}
                 onPress={() => router.push(`/(main)/discover/${post.id}`)}
               >
-                <Card style={{ backgroundColor: colors.CARD }}>
+                <Card 
+                  style={{ 
+                    backgroundColor: colors.CARD,
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    elevation: 2,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                  }}
+                >
                   {post.image_url && (
                     <Card.Cover 
                       source={{ uri: post.image_url }} 
-                      style={styles.cardImage}
+                      style={{
+                        height: 140,
+                        borderTopLeftRadius: 16,
+                        borderTopRightRadius: 16,
+                      }}
                     />
                   )}
                   <Card.Title
                     title={post.title}
                     subtitle={`by ${post.author_name}`}
-                    titleStyle={[styles.cardTitle, { color: colors.TEXT.PRIMARY }]}
+                    titleStyle={[styles.cardTitle, { color: colors.TEXT.PRIMARY, fontWeight: '600' }]}
                     subtitleStyle={[styles.cardSubtitle, { color: colors.TEXT.SECONDARY }]}
                     left={(props) => 
-                      post.author_profile_pic ? (
-                        <Avatar.Image 
-                          {...props} 
-                          size={40} 
-                          source={{ uri: post.author_profile_pic }} 
-                        />
-                      ) : (
-                        <Avatar.Icon 
-                          {...props} 
-                          size={40} 
-                          icon="account" 
-                        />
-                      )
+                      <Avatar.Image 
+                        {...props}
+                        size={40} 
+                        source={{ uri: post.author_profile_pic || 'https://i.pravatar.cc/150' }} 
+                      />
                     }
                   />
+                  <Card.Content style={{ paddingHorizontal: 16, paddingBottom: 16, paddingTop: 0 }}>
+                    <Text 
+                      style={{ color: colors.TEXT.SECONDARY }}
+                      numberOfLines={2}
+                    >
+                      {post.content.substring(0, 100)}{post.content.length > 100 ? '...' : ''}
+                    </Text>
+                  </Card.Content>
                 </Card>
               </Pressable>
             ))}
@@ -171,16 +196,15 @@ export default function Discover() {
       </ScrollView>
 
       <FAB
-        icon="plus"
         style={[
           styles.fab, 
           { 
             backgroundColor: colors.TAB_BAR.ACTIVE,
-            opacity: isAuthenticated ? 1 : 0.8 
           }
         ]}
+        icon="plus"
+        color="#FFF"
         onPress={handleCreatePost}
-        color={colors.BACKGROUND}
       />
 
       <Portal>
@@ -188,44 +212,44 @@ export default function Discover() {
           visible={showAuthModal}
           onDismiss={() => setShowAuthModal(false)}
           contentContainerStyle={[
-            styles.modalContent,
+            styles.modalContainer,
             { backgroundColor: colors.SURFACE }
           ]}
         >
-          <View style={styles.modalIcon}>
-            <MaterialCommunityIcons
-              name="account-lock"
-              size={48}
-              color={colors.TAB_BAR.ACTIVE}
-            />
-          </View>
-          <Text
-            variant="titleLarge"
-            style={[styles.modalTitle, { color: colors.TEXT.PRIMARY }]}
+          <Text 
+            variant="headlineSmall" 
+            style={{ 
+              color: colors.TEXT.PRIMARY, 
+              marginBottom: 16,
+              fontWeight: 'bold',
+              textAlign: 'center'
+            }}
           >
-            Sign in to Create Post
+            Sign In Required
           </Text>
-          <Text
-            variant="bodyMedium"
-            style={[styles.modalText, { color: colors.TEXT.SECONDARY }]}
+          <Text 
+            style={{ 
+              color: colors.TEXT.SECONDARY, 
+              marginBottom: 24,
+              textAlign: 'center',
+              lineHeight: 22
+            }}
           >
-            Please sign in to share your thoughts with the community.
+            Please sign in to create a new post and share with the community.
           </Text>
-          <Button
-            mode="contained"
+          <Button 
+            mode="contained" 
             onPress={() => {
               setShowAuthModal(false);
               router.push('/(main)/profile');
             }}
-            style={[styles.modalButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
+            style={{ 
+              borderRadius: 8,
+              paddingVertical: 6,
+              backgroundColor: colors.TAB_BAR.ACTIVE
+            }}
           >
             Go to Sign In
-          </Button>
-          <Button
-            mode="text"
-            onPress={() => setShowAuthModal(false)}
-          >
-            Maybe Later
           </Button>
         </Modal>
       </Portal>
@@ -239,60 +263,53 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    padding: 16,
   },
   title: {
-    marginHorizontal: 16,
-    marginVertical: 24,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 24,
+    marginTop: 8,
   },
   postsGrid: {
-    padding: 16,
+    flexDirection: 'column',
     gap: 16,
   },
   postCard: {
-    borderRadius: 12,
-    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 16,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+  },
+  cardImage: {
+    height: 150,
   },
   fab: {
     position: 'absolute',
     margin: 16,
     right: 0,
-    bottom: 0,
+    bottom: 70,
+    borderRadius: 28,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
   },
-  modalContent: {
-    margin: 20,
-    padding: 24,
-    borderRadius: 12,
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    padding: 32,
+    marginTop: 60,
   },
-  modalIcon: {
-    marginBottom: 16,
+  modalContainer: {
+    padding: 24,
+    margin: 20,
+    borderRadius: 16,
   },
-  modalTitle: {
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  modalText: {
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  modalButton: {
-    width: '100%',
-    marginBottom: 8,
-  },
-  cardImage: {
-    height: 200,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  cardSubtitle: {
-    fontSize: 14,
-  },
+  // Add additional styles as needed
 }); 
