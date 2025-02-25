@@ -4,8 +4,8 @@ import { getNavigationTheme } from '../../src/styles/theme';
 import { MainTabParamList } from '../../src/types/navigation';
 import { useTheme } from '../../src/contexts/theme';
 import React from 'react';
-import { View, Animated, Pressable, StyleSheet, Dimensions, Switch, Platform } from 'react-native';
-import { Avatar, Text, IconButton, Button } from 'react-native-paper';
+import { View, Animated, Pressable, StyleSheet, Dimensions, Switch, Platform, ScrollView } from 'react-native';
+import { Avatar, Text, IconButton, Button, Divider, RadioButton, Menu } from 'react-native-paper';
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../src/lib/supabase';
 import { useRouter } from 'expo-router';
@@ -118,12 +118,13 @@ type ProfileData = {
 };
 
 export default function MainLayout() {
-  const { theme, colors, toggleTheme } = useTheme();
+  const { theme, colors, toggleTheme, colorPalette, setColorPalette } = useTheme();
   const navigationTheme = getNavigationTheme(theme);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const slideAnim = useRef(new Animated.Value(Dimensions.get('window').width)).current;
   const router = useRouter();
+  const [paletteMenuVisible, setPaletteMenuVisible] = useState(false);
 
   const fetchProfile = async () => {
     try {
@@ -174,6 +175,11 @@ export default function MainLayout() {
     } catch (error) {
       console.error('Error signing out:', error);
     }
+  };
+
+  const handlePaletteChange = (palette: 'default' | 'citric' | 'mint' | 'berry' | 'ocean') => {
+    setColorPalette(palette);
+    setPaletteMenuVisible(false);
   };
 
   return (
@@ -318,12 +324,113 @@ export default function MainLayout() {
       <Animated.View
         style={[
           styles.menu,
-          {
-            backgroundColor: colors.SURFACE,
-            transform: [{ translateX: slideAnim }],
+          { 
+            backgroundColor: colors.BACKGROUND,
+            transform: [{ translateX: slideAnim }] 
           },
-        ]}>
-        <View style={styles.menuContent}>
+        ]}
+      >
+        <ScrollView 
+          style={styles.menuContent}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.themeContainer, { backgroundColor: colors.SURFACE, marginTop: 16 }]}>
+            <Text variant="titleMedium" style={{ color: colors.TEXT.PRIMARY, marginBottom: 12 }}>
+              Appearance
+            </Text>
+            
+            <View style={[styles.themeToggle, { backgroundColor: colors.SURFACE }]}>
+              <View style={styles.themeToggleContent}>
+                <MaterialCommunityIcons
+                  name={theme === 'dark' ? 'weather-night' : 'weather-sunny'}
+                  size={24}
+                  color={colors.TEXT.PRIMARY}
+                />
+                <Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY, flex: 1, marginLeft: 12 }}>
+                  Dark Mode
+                </Text>
+                <Switch
+                  value={theme === 'dark'}
+                  onValueChange={toggleTheme}
+                  trackColor={{ false: '#767577', true: colors.TAB_BAR.ACTIVE }}
+                  thumbColor={theme === 'dark' ? colors.TAB_BAR.ACTIVE : '#f4f3f4'}
+                />
+              </View>
+            </View>
+            
+            <Divider style={{ marginVertical: 12 }} />
+            
+            <Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY, marginBottom: 8 }}>
+              Color Palette
+            </Text>
+            
+            <Menu
+              visible={paletteMenuVisible}
+              onDismiss={() => setPaletteMenuVisible(false)}
+              anchor={
+                <Pressable
+                  onPress={() => setPaletteMenuVisible(true)}
+                  style={[styles.dropdownButton, { borderColor: colors.BORDER }]}
+                >
+                  <View style={styles.colorPreview}>
+                    <View style={[
+                      styles.colorSwatch, 
+                      { 
+                        backgroundColor: 
+                          colorPalette === 'default' ? '#6B4DE6' :
+                          colorPalette === 'citric' ? '#FFB347' :
+                          colorPalette === 'mint' ? '#4AD66D' :
+                          colorPalette === 'berry' ? '#FF6B6B' :
+                          '#2E86DE' // ocean
+                      }
+                    ]} />
+                  </View>
+                  <Text style={{ flex: 1, color: colors.TEXT.PRIMARY }}>
+                    {colorPalette.charAt(0).toUpperCase() + colorPalette.slice(1)}
+                  </Text>
+                  <MaterialCommunityIcons name="chevron-down" size={24} color={colors.TEXT.SECONDARY} />
+                </Pressable>
+              }
+            >
+              <Menu.Item 
+                onPress={() => handlePaletteChange('default')} 
+                title="Default" 
+                leadingIcon={() => (
+                  <View style={[styles.colorSwatch, { backgroundColor: '#6B4DE6', width: 20, height: 20, borderRadius: 10 }]} />
+                )}
+              />
+              <Menu.Item 
+                onPress={() => handlePaletteChange('citric')} 
+                title="Citric" 
+                leadingIcon={() => (
+                  <View style={[styles.colorSwatch, { backgroundColor: '#FFB347', width: 20, height: 20, borderRadius: 10 }]} />
+                )}
+              />
+              <Menu.Item 
+                onPress={() => handlePaletteChange('mint')} 
+                title="Mint" 
+                leadingIcon={() => (
+                  <View style={[styles.colorSwatch, { backgroundColor: '#4AD66D', width: 20, height: 20, borderRadius: 10 }]} />
+                )}
+              />
+              <Menu.Item 
+                onPress={() => handlePaletteChange('berry')} 
+                title="Berry" 
+                leadingIcon={() => (
+                  <View style={[styles.colorSwatch, { backgroundColor: '#FF6B6B', width: 20, height: 20, borderRadius: 10 }]} />
+                )}
+              />
+              <Menu.Item 
+                onPress={() => handlePaletteChange('ocean')} 
+                title="Ocean" 
+                leadingIcon={() => (
+                  <View style={[styles.colorSwatch, { backgroundColor: '#2E86DE', width: 20, height: 20, borderRadius: 10 }]} />
+                )}
+              />
+            </Menu>
+          </View>
+
           {profile ? (
             <>
               <View style={styles.profileSection}>
@@ -368,24 +475,6 @@ export default function MainLayout() {
                 >
                   My Posts
                 </Button>
-                <View style={[styles.themeToggle, { backgroundColor: colors.SURFACE }]}>
-                  <View style={styles.themeToggleContent}>
-                    <MaterialCommunityIcons
-                      name={theme === 'dark' ? 'weather-night' : 'weather-sunny'}
-                      size={24}
-                      color={colors.TEXT.PRIMARY}
-                    />
-                    <Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY, flex: 1, marginLeft: 12 }}>
-                      Dark Mode
-                    </Text>
-                    <Switch
-                      value={theme === 'dark'}
-                      onValueChange={toggleTheme}
-                      trackColor={{ false: '#767577', true: colors.TAB_BAR.ACTIVE }}
-                      thumbColor={theme === 'dark' ? colors.TAB_BAR.ACTIVE : '#f4f3f4'}
-                    />
-                  </View>
-                </View>
               </View>
 
               <View style={styles.footer}>
@@ -421,27 +510,6 @@ export default function MainLayout() {
                 </Text>
               </View>
 
-              <View style={styles.actions}>
-                <View style={[styles.themeToggle, { backgroundColor: colors.SURFACE }]}>
-                  <View style={styles.themeToggleContent}>
-                    <MaterialCommunityIcons
-                      name={theme === 'dark' ? 'weather-night' : 'weather-sunny'}
-                      size={24}
-                      color={colors.TEXT.PRIMARY}
-                    />
-                    <Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY, flex: 1, marginLeft: 12 }}>
-                      Dark Mode
-                    </Text>
-                    <Switch
-                      value={theme === 'dark'}
-                      onValueChange={toggleTheme}
-                      trackColor={{ false: '#767577', true: colors.TAB_BAR.ACTIVE }}
-                      thumbColor={theme === 'dark' ? colors.TAB_BAR.ACTIVE : '#f4f3f4'}
-                    />
-                  </View>
-                </View>
-              </View>
-
               <View style={styles.footer}>
                 <Button
                   mode="contained"
@@ -457,7 +525,7 @@ export default function MainLayout() {
               </View>
             </>
           )}
-        </View>
+        </ScrollView>
       </Animated.View>
     </View>
   );
@@ -516,14 +584,37 @@ const styles = StyleSheet.create({
   signInButton: {
     marginTop: 16,
   },
+  themeContainer: {
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
   themeToggle: {
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 4,
     overflow: 'hidden',
   },
   themeToggleContent: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  colorPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  colorSwatch: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    marginRight: 12,
   },
 }); 

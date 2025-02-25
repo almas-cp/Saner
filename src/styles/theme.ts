@@ -8,6 +8,33 @@ export const COLORS = {
   GRADIENT: {
     MOOD: ['#FF6B6B', '#FFB347', '#4AD66D'], // Mood slider gradient
   },
+  PALETTES: {
+    DEFAULT: {
+      PRIMARY: '#6B4DE6',    // Main purple
+      SECONDARY: '#9B7EFF',  // Light purple
+      ACCENT: '#4AD66D',     // Green
+    },
+    CITRIC: {
+      PRIMARY: '#FFB347',    // Orange
+      SECONDARY: '#FFCC80',  // Light orange
+      ACCENT: '#FF6B6B',     // Red
+    },
+    MINT: {
+      PRIMARY: '#4AD66D',    // Green
+      SECONDARY: '#A5F2B3',  // Light green
+      ACCENT: '#2E86DE',     // Blue
+    },
+    BERRY: {
+      PRIMARY: '#FF6B6B',    // Red
+      SECONDARY: '#FFA5A5',  // Light red
+      ACCENT: '#9B7EFF',     // Purple
+    },
+    OCEAN: {
+      PRIMARY: '#2E86DE',    // Blue
+      SECONDARY: '#90CAF9',  // Light blue
+      ACCENT: '#4AD66D',     // Green
+    }
+  },
   LIGHT: {
     BACKGROUND: '#FFFFFF',
     SURFACE: '#F8F9FA',
@@ -51,6 +78,42 @@ export const COLORS = {
 } as const;
 
 export type Theme = 'light' | 'dark';
+export type ColorPalette = 'default' | 'citric' | 'mint' | 'berry' | 'ocean';
+
+// Function to get palette colors
+export const getPaletteColors = (palette: ColorPalette) => {
+  switch (palette) {
+    case 'citric':
+      return COLORS.PALETTES.CITRIC;
+    case 'mint':
+      return COLORS.PALETTES.MINT;
+    case 'berry':
+      return COLORS.PALETTES.BERRY;
+    case 'ocean':
+      return COLORS.PALETTES.OCEAN;
+    default:
+      return COLORS.PALETTES.DEFAULT;
+  }
+};
+
+// Get theme colors with palette applied
+export const getThemeWithPalette = (theme: Theme, palette: ColorPalette) => {
+  const baseColors = theme === 'light' ? { ...COLORS.LIGHT } : { ...COLORS.DARK };
+  const paletteColors = getPaletteColors(palette);
+  
+  // Apply palette colors to the theme
+  return {
+    ...baseColors,
+    TAB_BAR: {
+      ...baseColors.TAB_BAR,
+      ACTIVE: theme === 'light' ? paletteColors.PRIMARY : paletteColors.SECONDARY,
+    },
+    ICONS: {
+      ...baseColors.ICONS,
+      PRIMARY: theme === 'light' ? paletteColors.PRIMARY : paletteColors.SECONDARY,
+    }
+  };
+};
 
 export const getNavigationTheme = (theme: Theme) => {
   const colors = theme === 'light' ? COLORS.LIGHT : COLORS.DARK;
