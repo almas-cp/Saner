@@ -1,17 +1,22 @@
 import { View, StyleSheet, Dimensions, Pressable, Modal, Animated, ScrollView, SafeAreaView } from 'react-native';
-import { Text, Title, Subheading, Caption, IconButton, Button } from 'react-native-paper';
+import { Text, Title, Subheading, Caption, IconButton, Button, Card, ProgressBar, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../../src/contexts/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
 import React, { useState, useRef, useEffect } from 'react';
 import { COLORS } from '../../../src/styles/theme';
+import { MotiView } from 'moti';
+import { supabase } from '../../../src/lib/supabase';
+import { useRouter } from 'expo-router';
+import { TextInput } from 'react-native-paper';
 
 type Exercise = {
   id: string;
   name: string;
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   description: string;
+  benefits: string[];
   pattern: {
     inhale: number;
     hold1?: number;
@@ -20,12 +25,19 @@ type Exercise = {
   };
 };
 
+type MoodEntry = {
+  value: number;
+  timestamp: string;
+  notes?: string;
+};
+
 const exercises: Exercise[] = [
   {
     id: 'box',
     name: 'Box Breathing',
     icon: 'square-outline',
     description: 'Inhale, hold, exhale, hold - each for 4 seconds',
+    benefits: ['Reduces stress', 'Improves focus', 'Lowers blood pressure'],
     pattern: {
       inhale: 4,
       hold1: 4,
@@ -38,6 +50,7 @@ const exercises: Exercise[] = [
     name: '4-7-8 Breathing',
     icon: 'numeric-8-circle-outline',
     description: 'Inhale for 4, hold for 7, exhale for 8',
+    benefits: ['Helps with sleep', 'Reduces anxiety', 'Balances emotions'],
     pattern: {
       inhale: 4,
       hold1: 7,
@@ -49,6 +62,7 @@ const exercises: Exercise[] = [
     name: 'Calming Breath',
     icon: 'heart-outline',
     description: 'Inhale for 4, exhale for 6',
+    benefits: ['Reduces anxiety', 'Lowers heart rate', 'Prepares for meditation'],
     pattern: {
       inhale: 4,
       exhale: 6
@@ -59,9 +73,33 @@ const exercises: Exercise[] = [
     name: 'Energizing Breath',
     icon: 'lightning-bolt',
     description: 'Quick inhale for 2, exhale for 2',
+    benefits: ['Increases alertness', 'Improves energy', 'Enhances concentration'],
     pattern: {
       inhale: 2,
       exhale: 2
+    }
+  },
+  {
+    id: 'focused',
+    name: 'Focus Breath',
+    icon: 'brain',
+    description: 'Deep inhale for 5, hold for 2, slow exhale for 7',
+    benefits: ['Improves cognitive function', 'Enhances clarity', 'Reduces mental fatigue'],
+    pattern: {
+      inhale: 5,
+      hold1: 2,
+      exhale: 7
+    }
+  },
+  {
+    id: 'sleep',
+    name: 'Sleep Well',
+    icon: 'weather-night',
+    description: 'Gentle inhale for 4, exhale for 8. Perfect before bed.',
+    benefits: ['Induces relaxation', 'Prepares body for sleep', 'Reduces racing thoughts'],
+    pattern: {
+      inhale: 4,
+      exhale: 8
     }
   }
 ];
@@ -70,18 +108,112 @@ function MoodSlider() {
   const { colors } = useTheme();
   const [mood, setMood] = useState(50);
   const [submitted, setSubmitted] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [moodHistory, setMoodHistory] = useState<MoodEntry[]>([]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    checkAuth();
+    fetchMoodHistory();
+  }, []);
+
+  const checkAuth = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setIsAuthenticated(!!user);
+  };
+
+  const fetchMoodHistory = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('mood_entries')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (error) throw error;
+      
+      if (data) {
+        setMoodHistory(data.map(entry => ({
+          value: entry.value,
+          timestamp: entry.created_at,
+          notes: entry.notes
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching mood history:', error);
+    }
+  };
 
   const getMoodEmoji = (value: number) => {
-    if (value < 30) return { icon: 'emoticon-sad-outline' as const, color: '#FF6B6B', text: 'Not great' };
-    if (value < 70) return { icon: 'emoticon-neutral-outline' as const, color: '#FFB347', text: 'Okay' };
-    return { icon: 'emoticon-happy-outline' as const, color: '#4AD66D', text: 'Great' };
+    if (value < 20) return { icon: 'emoticon-cry-outline' as const, color: '#E53935', text: 'Feeling low' };
+    if (value < 40) return { icon: 'emoticon-sad-outline' as const, color: '#FF6B6B', text: 'Not great' };
+    if (value < 60) return { icon: 'emoticon-neutral-outline' as const, color: '#FFB347', text: 'Okay' };
+    if (value < 80) return { icon: 'emoticon-happy-outline' as const, color: '#4AD66D', text: 'Good' };
+    return { icon: 'emoticon-excited-outline' as const, color: '#2E7D32', text: 'Excellent!' };
   };
 
   const currentMood = getMoodEmoji(mood);
   
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitted(true);
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      // Prompt to log in
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('mood_entries')
+        .insert({
+          user_id: user.id,
+          value: mood,
+          notes: notes,
+          created_at: new Date().toISOString()
+        });
+      
+      if (error) throw error;
+      
+      // Update local mood history
+      setMoodHistory([
+        {
+          value: mood,
+          timestamp: new Date().toISOString(),
+          notes
+        },
+        ...moodHistory.slice(0, 4)
+      ]);
+      
+    } catch (error) {
+      console.error('Error logging mood:', error);
+    }
   };
+
+  const getMoodAnalysis = () => {
+    if (moodHistory.length === 0) return null;
+    
+    const average = moodHistory.reduce((acc, item) => acc + item.value, 0) / moodHistory.length;
+    const trend = moodHistory.length > 1 
+      ? moodHistory[0].value > moodHistory[moodHistory.length - 1].value 
+        ? 'improving' 
+        : 'declining'
+      : 'stable';
+    
+    return {
+      average,
+      trend,
+      emoji: getMoodEmoji(average).icon
+    };
+  };
+
+  const moodAnalysis = getMoodAnalysis();
 
   return (
     <View style={[
@@ -109,12 +241,18 @@ function MoodSlider() {
       </Text>
       
       <View style={styles.moodEmoji}>
-        <MaterialCommunityIcons
-          name={currentMood.icon}
-          size={48}
-          color={currentMood.color}
-          style={{ marginBottom: 8 }}
-        />
+        <MotiView
+          from={{ scale: 0.8, opacity: 0.5 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'timing', duration: 500 }}
+        >
+          <MaterialCommunityIcons
+            name={currentMood.icon}
+            size={48}
+            color={currentMood.color}
+            style={{ marginBottom: 8 }}
+          />
+        </MotiView>
         <Text style={{ 
           fontSize: 18, 
           color: currentMood.color,
@@ -145,24 +283,306 @@ function MoodSlider() {
         
         <View style={styles.emojiLabels}>
           <Text style={{ color: colors.TEXT.SECONDARY }}>😞</Text>
+          <Text style={{ color: colors.TEXT.SECONDARY }}>😐</Text>
           <Text style={{ color: colors.TEXT.SECONDARY }}>😊</Text>
         </View>
       </View>
       
       {!submitted ? (
-        <Button
-          onPress={handleSubmit}
-          mode="contained"
-          style={[styles.moodButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
-        >
-          Log Mood
-        </Button>
+        <View>
+          {!showNotes && (
+            <Button
+              onPress={() => setShowNotes(true)}
+              mode="text"
+              style={{ marginBottom: 12 }}
+            >
+              Add notes
+            </Button>
+          )}
+          
+          {showNotes && (
+            <View style={styles.notesContainer}>
+              <TextInput
+                placeholder="What's on your mind? (optional)"
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+                numberOfLines={3}
+                style={[styles.notesInput, { backgroundColor: colors.BACKGROUND }]}
+              />
+            </View>
+          )}
+          
+          <Button
+            onPress={handleSubmit}
+            mode="contained"
+            style={[styles.moodButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
+          >
+            Log Mood
+          </Button>
+          
+          {!isAuthenticated && (
+            <Text style={{ color: colors.TEXT.SECONDARY, fontSize: 12, textAlign: 'center', marginTop: 8 }}>
+              Sign in to track your mood history
+            </Text>
+          )}
+        </View>
       ) : (
-        <Text style={[styles.thankYouText, { color: colors.TAB_BAR.ACTIVE }]}>
-          Thanks for sharing! 🙏
-        </Text>
+        <View>
+          <Text style={[styles.thankYouText, { color: colors.TAB_BAR.ACTIVE }]}>
+            Thanks for sharing! 🙏
+          </Text>
+          
+          {isAuthenticated && moodHistory.length > 0 && (
+            <Pressable 
+              style={[styles.moodHistoryButton, { borderColor: colors.BORDER }]}
+              onPress={() => router.push('/(main)/breath/mood-history')}
+            >
+              <View style={styles.moodHistoryContent}>
+                <MaterialCommunityIcons
+                  name="chart-line"
+                  size={22}
+                  color={colors.TAB_BAR.ACTIVE}
+                />
+                <Text style={{ color: colors.TEXT.PRIMARY, marginLeft: 8 }}>
+                  View Mood History
+                </Text>
+              </View>
+              
+              {moodAnalysis && (
+                <View style={styles.moodTrend}>
+                  <MaterialCommunityIcons
+                    name={moodAnalysis.trend === 'improving' ? 'trending-up' : 'trending-down'}
+                    size={20}
+                    color={moodAnalysis.trend === 'improving' ? '#4CAF50' : '#F44336'}
+                  />
+                </View>
+              )}
+            </Pressable>
+          )}
+        </View>
       )}
     </View>
+  );
+}
+
+function RecommendedExercise({ onSelectExercise }: { onSelectExercise: (exercise: Exercise) => void }) {
+  const { colors } = useTheme();
+  const [recommendation, setRecommendation] = useState<Exercise | null>(null);
+  
+  useEffect(() => {
+    // This could be based on time of day, user history, mood, etc.
+    const currentHour = new Date().getHours();
+    let recommendedId = 'box'; // default
+
+    if (currentHour < 10) {
+      recommendedId = 'energize'; // Morning - energy boost
+    } else if (currentHour >= 21) {
+      recommendedId = 'sleep'; // Evening - prepare for sleep
+    } else if (currentHour >= 13 && currentHour < 17) {
+      recommendedId = 'focused'; // Afternoon - focus
+    }
+    
+    const found = exercises.find(ex => ex.id === recommendedId);
+    if (found) {
+      setRecommendation(found);
+    }
+  }, []);
+  
+  if (!recommendation) return null;
+  
+  return (
+    <MotiView
+      from={{ opacity: 0, translateY: 15 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 600 }}
+      style={{ marginHorizontal: 16, marginBottom: 24 }}
+    >
+      <LinearGradient
+        colors={['#4a6fa1', '#166bb5']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.recommendedCard, { borderRadius: 20 }]}
+      >
+        <View style={styles.recommendedContent}>
+          <View>
+            <Text style={styles.recommendedLabel}>Recommended for now</Text>
+            <Text style={styles.recommendedTitle}>{recommendation.name}</Text>
+            <Text style={styles.recommendedDescription}>{recommendation.description}</Text>
+            
+            <Button 
+              mode="contained" 
+              onPress={() => onSelectExercise(recommendation)}
+              style={styles.startButton}
+              labelStyle={{ color: '#166bb5' }}
+              buttonColor="#ffffff"
+            >
+              Start Now
+            </Button>
+          </View>
+          
+          <View style={styles.recommendedIconContainer}>
+            <MaterialCommunityIcons
+              name={recommendation.icon}
+              size={60}
+              color="#ffffff"
+              style={{ opacity: 0.9 }}
+            />
+          </View>
+        </View>
+      </LinearGradient>
+    </MotiView>
+  );
+}
+
+function StatsCard() {
+  const { colors } = useTheme();
+  const [stats, setStats] = useState({
+    weeklyMinutes: 0,
+    totalSessions: 0,
+    streak: 0,
+    lastExercise: ''
+  });
+  
+  useEffect(() => {
+    fetchStats();
+  }, []);
+  
+  const fetchStats = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    try {
+      // Fetch breath session stats
+      const { data, error } = await supabase
+        .from('breath_sessions')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (error) throw error;
+      
+      if (data) {
+        // Calculate stats
+        const totalSessions = data.length;
+        
+        // Calculate minutes this week
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        const weekSessions = data.filter(session => 
+          new Date(session.created_at) >= oneWeekAgo
+        );
+        
+        const weeklyMinutes = Math.round(weekSessions.reduce(
+          (acc, session) => acc + (session.duration_seconds || 0), 0
+        ) / 60);
+        
+        // Calculate streak (consecutive days)
+        const sessionDates = data.map(session => 
+          new Date(session.created_at).toDateString()
+        );
+        
+        const uniqueDates = [...new Set(sessionDates)];
+        uniqueDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+        
+        let streak = 0;
+        let currentDate = new Date();
+        currentDate.setHours(0, 0, 0, 0);
+
+        // Go back one day if no session today
+        if (uniqueDates[0] !== currentDate.toDateString()) {
+          currentDate.setDate(currentDate.getDate() - 1);
+        }
+        
+        for (let i = 0; i < 30; i++) { // max 30 day look-back
+          const dateStr = currentDate.toDateString();
+          if (uniqueDates.includes(dateStr)) {
+            streak++;
+            currentDate.setDate(currentDate.getDate() - 1);
+          } else {
+            break;
+          }
+        }
+        
+        // Get last exercise name
+        let lastExercise = '';
+        if (data.length > 0) {
+          data.sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          lastExercise = data[0].exercise_name || '';
+        }
+        
+        setStats({
+          weeklyMinutes,
+          totalSessions,
+          streak,
+          lastExercise
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching breath stats:', error);
+    }
+  };
+  
+  return (
+    <Card style={[styles.statsCard, { backgroundColor: colors.CARD }]}>
+      <Card.Content>
+        <Text style={[styles.statsTitle, { color: colors.TEXT.PRIMARY }]}>
+          Your Progress
+        </Text>
+        
+        <View style={styles.statsGrid}>
+          <View style={styles.statItem}>
+            <MaterialCommunityIcons 
+              name="timer-outline" 
+              size={22} 
+              color={colors.TAB_BAR.ACTIVE} 
+            />
+            <Text style={[styles.statValue, { color: colors.TEXT.PRIMARY }]}>
+              {stats.weeklyMinutes}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.TEXT.SECONDARY }]}>
+              minutes this week
+            </Text>
+          </View>
+          
+          <View style={styles.statItem}>
+            <MaterialCommunityIcons 
+              name="fire" 
+              size={22} 
+              color="#FF9800" 
+            />
+            <Text style={[styles.statValue, { color: colors.TEXT.PRIMARY }]}>
+              {stats.streak}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.TEXT.SECONDARY }]}>
+              day streak
+            </Text>
+          </View>
+          
+          <View style={styles.statItem}>
+            <MaterialCommunityIcons 
+              name="meditation" 
+              size={22} 
+              color="#9C27B0" 
+            />
+            <Text style={[styles.statValue, { color: colors.TEXT.PRIMARY }]}>
+              {stats.totalSessions}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.TEXT.SECONDARY }]}>
+              total sessions
+            </Text>
+          </View>
+        </View>
+        
+        {stats.lastExercise && (
+          <Text style={{ fontSize: 13, color: colors.TEXT.SECONDARY, textAlign: 'center', marginTop: 8 }}>
+            Last exercise: {stats.lastExercise}
+          </Text>
+        )}
+      </Card.Content>
+    </Card>
   );
 }
 
@@ -179,6 +599,8 @@ function ExerciseModal({ exercise, visible, onClose }: {
   const [isActive, setIsActive] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [totalCycles, setTotalCycles] = useState(0);
+  const [totalSeconds, setTotalSeconds] = useState(0);
+  const [showInfo, setShowInfo] = useState(false);
 
   useEffect(() => {
     const listener = progressAnim.addListener(({ value }) => {
@@ -187,11 +609,24 @@ function ExerciseModal({ exercise, visible, onClose }: {
     return () => progressAnim.removeListener(listener);
   }, []);
 
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (isActive && hasStarted) {
+      interval = setInterval(() => {
+        setTotalSeconds(s => s + 1);
+      }, 1000);
+    }
+    
+    return () => clearInterval(interval);
+  }, [isActive, hasStarted]);
+
   const startExercise = () => {
     setHasStarted(true);
     setIsActive(true);
     setPhase('inhale');
     setTotalCycles(0);
+    setTotalSeconds(0);
     progressAnim.setValue(0);
   };
 
@@ -201,11 +636,35 @@ function ExerciseModal({ exercise, visible, onClose }: {
     setPhase('inhale');
     setTimeLeft(0);
     setTotalCycles(0);
+    setTotalSeconds(0);
     progressAnim.setValue(0);
+  };
+  
+  const saveSession = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !exercise) return;
+    
+    try {
+      await supabase
+        .from('breath_sessions')
+        .insert({
+          user_id: user.id,
+          exercise_id: exercise.id,
+          exercise_name: exercise.name,
+          duration_seconds: totalSeconds,
+          cycles_completed: totalCycles,
+          created_at: new Date().toISOString()
+        });
+    } catch (error) {
+      console.error('Error logging breath session:', error);
+    }
   };
 
   useEffect(() => {
     if (!visible) {
+      if (totalSeconds > 0) {
+        saveSession();
+      }
       resetExercise();
     }
   }, [visible]);
@@ -294,83 +753,189 @@ function ExerciseModal({ exercise, visible, onClose }: {
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { backgroundColor: colors.SURFACE }]}>
+        <MotiView
+          from={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'timing', duration: 400 }}
+          style={[styles.modalContent, { backgroundColor: colors.SURFACE }]}
+        >
           <View style={styles.modalHeader}>
             <Title style={{ color: colors.TEXT.PRIMARY }}>{exercise.name}</Title>
-            <IconButton
-              icon="close"
-              size={24}
-              onPress={onClose}
-              iconColor={colors.TEXT.PRIMARY}
-            />
-          </View>
-
-          <View style={styles.exerciseContent}>
-            <View style={[styles.circleContainer, { borderColor: colors.TAB_BAR.ACTIVE }]}>
-              <Animated.View
-                style={[
-                  styles.progressCircle,
-                  {
-                    backgroundColor: colors.TAB_BAR.ACTIVE,
-                    transform: [
-                      {
-                        scale: progressAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [0.3, 1],
-                        }),
-                      },
-                    ],
-                    opacity: progressAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.3, 0.15],
-                    }),
-                  },
-                ]}
+            <View style={styles.headerActions}>
+              <IconButton
+                icon="information-outline"
+                size={24}
+                onPress={() => setShowInfo(!showInfo)}
+                iconColor={colors.TEXT.PRIMARY}
               />
-              <View style={styles.circleContent}>
-                <Subheading style={{ color: colors.TEXT.PRIMARY }}>
-                  {getPhaseText()}
-                </Subheading>
-                <Title style={{ color: colors.TEXT.PRIMARY, fontSize: 32 }}>{timeLeft}s</Title>
-                {hasStarted && (
-                  <Caption style={{ color: colors.TEXT.SECONDARY, marginTop: 4 }}>
-                    Cycle {totalCycles + 1}/3
-                  </Caption>
+              <IconButton
+                icon="close"
+                size={24}
+                onPress={onClose}
+                iconColor={colors.TEXT.PRIMARY}
+              />
+            </View>
+          </View>
+          
+          {showInfo ? (
+            <View style={styles.infoContainer}>
+              <Text style={{ color: colors.TEXT.PRIMARY, marginBottom: 12 }}>
+                {exercise.description}
+              </Text>
+              
+              <Text style={{ color: colors.TEXT.PRIMARY, fontWeight: 'bold', marginBottom: 8 }}>
+                Benefits:
+              </Text>
+              
+              <View style={styles.benefitsList}>
+                {exercise.benefits.map((benefit, index) => (
+                  <View key={index} style={styles.benefitItem}>
+                    <MaterialCommunityIcons
+                      name="check-circle-outline"
+                      size={18}
+                      color={colors.TAB_BAR.ACTIVE}
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={{ color: colors.TEXT.PRIMARY }}>{benefit}</Text>
+                  </View>
+                ))}
+              </View>
+              
+              <Text style={{ color: colors.TEXT.PRIMARY, fontWeight: 'bold', marginTop: 12, marginBottom: 8 }}>
+                Pattern:
+              </Text>
+              
+              <View style={styles.patternInfo}>
+                <View style={styles.patternItem}>
+                  <Text style={{ color: colors.TEXT.SECONDARY }}>Inhale</Text>
+                  <Text style={{ color: colors.TEXT.PRIMARY, fontWeight: 'bold' }}>{exercise.pattern.inhale}s</Text>
+                </View>
+                
+                {exercise.pattern.hold1 && (
+                  <View style={styles.patternItem}>
+                    <Text style={{ color: colors.TEXT.SECONDARY }}>Hold</Text>
+                    <Text style={{ color: colors.TEXT.PRIMARY, fontWeight: 'bold' }}>{exercise.pattern.hold1}s</Text>
+                  </View>
+                )}
+                
+                <View style={styles.patternItem}>
+                  <Text style={{ color: colors.TEXT.SECONDARY }}>Exhale</Text>
+                  <Text style={{ color: colors.TEXT.PRIMARY, fontWeight: 'bold' }}>{exercise.pattern.exhale}s</Text>
+                </View>
+                
+                {exercise.pattern.hold2 && (
+                  <View style={styles.patternItem}>
+                    <Text style={{ color: colors.TEXT.SECONDARY }}>Hold</Text>
+                    <Text style={{ color: colors.TEXT.PRIMARY, fontWeight: 'bold' }}>{exercise.pattern.hold2}s</Text>
+                  </View>
                 )}
               </View>
+              
+              <Button
+                mode="contained"
+                onPress={() => {
+                  setShowInfo(false);
+                  if (!hasStarted) startExercise();
+                }}
+                style={[styles.startInfoButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
+              >
+                {hasStarted ? 'Continue Exercise' : 'Start Exercise'}
+              </Button>
             </View>
+          ) : (
+            <View style={styles.exerciseContent}>
+              {totalSeconds > 0 && (
+                <View style={styles.sessionStats}>
+                  <Text style={{ color: colors.TEXT.SECONDARY }}>
+                    Session: {Math.floor(totalSeconds / 60)}:{(totalSeconds % 60).toString().padStart(2, '0')}
+                  </Text>
+                </View>
+              )}
+              
+              <View style={[styles.circleContainer, { borderColor: colors.TAB_BAR.ACTIVE }]}>
+                <Animated.View
+                  style={[
+                    styles.progressCircle,
+                    {
+                      backgroundColor: colors.TAB_BAR.ACTIVE,
+                      transform: [
+                        {
+                          scale: progressAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0.3, 1],
+                          }),
+                        },
+                      ],
+                      opacity: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.3, 0.15],
+                      }),
+                    },
+                  ]}
+                />
+                <View style={styles.circleContent}>
+                  <Subheading style={{ color: colors.TEXT.PRIMARY }}>
+                    {getPhaseText()}
+                  </Subheading>
+                  <Title style={{ color: colors.TEXT.PRIMARY, fontSize: 32 }}>{timeLeft}s</Title>
+                  {hasStarted && (
+                    <Caption style={{ color: colors.TEXT.SECONDARY, marginTop: 4 }}>
+                      Cycle {totalCycles + 1}/3
+                    </Caption>
+                  )}
+                </View>
+              </View>
 
-            {!hasStarted ? (
-              <Pressable
-                style={[
-                  styles.controlButton,
-                  { backgroundColor: colors.TAB_BAR.ACTIVE },
-                ]}
-                onPress={startExercise}
-              >
-                <MaterialCommunityIcons
-                  name="play"
-                  size={32}
-                  color={colors.BACKGROUND}
-                />
-              </Pressable>
-            ) : (
-              <Pressable
-                style={[
-                  styles.controlButton,
-                  { backgroundColor: colors.TAB_BAR.ACTIVE },
-                ]}
-                onPress={() => setIsActive(!isActive)}
-              >
-                <MaterialCommunityIcons
-                  name={isActive ? 'pause' : 'play'}
-                  size={32}
-                  color={colors.BACKGROUND}
-                />
-              </Pressable>
-            )}
-          </View>
-        </View>
+              {!hasStarted ? (
+                <Button
+                  mode="contained"
+                  style={[
+                    styles.startButton,
+                    { backgroundColor: colors.TAB_BAR.ACTIVE },
+                  ]}
+                  onPress={startExercise}
+                  icon="play"
+                >
+                  Begin
+                </Button>
+              ) : (
+                <View style={styles.controlsContainer}>
+                  <Pressable
+                    style={[
+                      styles.controlButton,
+                      { backgroundColor: colors.TAB_BAR.ACTIVE },
+                    ]}
+                    onPress={() => setIsActive(!isActive)}
+                  >
+                    <MaterialCommunityIcons
+                      name={isActive ? 'pause' : 'play'}
+                      size={32}
+                      color={colors.BACKGROUND}
+                    />
+                  </Pressable>
+                  
+                  <Pressable
+                    style={[
+                      styles.resetButton,
+                      { 
+                        backgroundColor: 'transparent',
+                        borderColor: colors.BORDER,
+                        borderWidth: 1
+                      },
+                    ]}
+                    onPress={resetExercise}
+                  >
+                    <MaterialCommunityIcons
+                      name="restart"
+                      size={22}
+                      color={colors.TEXT.PRIMARY}
+                    />
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          )}
+        </MotiView>
       </View>
     </Modal>
   );
@@ -380,52 +945,81 @@ function ExerciseCard({ exercise, onPress }: { exercise: Exercise; onPress: () =
   const { colors } = useTheme();
   
   return (
-    <Pressable 
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.exerciseCard,
-        {
-          backgroundColor: colors.CARD,
-          borderRadius: 20,
-          shadowColor: colors.TEXT.PRIMARY,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 8,
-          elevation: 3,
-          borderWidth: 0.5,
-          borderColor: colors.BORDER,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
-          opacity: pressed ? 0.9 : 1,
-        }
-      ]}
+    <MotiView
+      from={{ opacity: 0, translateY: 20 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: 'timing', duration: 500, delay: exercises.findIndex(e => e.id === exercise.id) * 100 }}
     >
-      <View style={styles.exerciseCardContent}>
-        <View style={[
-          styles.iconContainer,
-          { backgroundColor: colors.TAB_BAR.ACTIVE + '20' }
-        ]}>
-          <MaterialCommunityIcons
-            name={exercise.icon}
-            size={30}
-            color={colors.TAB_BAR.ACTIVE}
-          />
+      <Pressable 
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.exerciseCard,
+          {
+            backgroundColor: colors.CARD,
+            borderRadius: 20,
+            shadowColor: colors.TEXT.PRIMARY,
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 3,
+            borderWidth: 0.5,
+            borderColor: colors.BORDER,
+            transform: [{ scale: pressed ? 0.98 : 1 }],
+            opacity: pressed ? 0.9 : 1,
+          }
+        ]}
+      >
+        <View style={styles.exerciseCardContent}>
+          <View style={[
+            styles.iconContainer,
+            { backgroundColor: colors.TAB_BAR.ACTIVE + '20' }
+          ]}>
+            <MaterialCommunityIcons
+              name={exercise.icon}
+              size={30}
+              color={colors.TAB_BAR.ACTIVE}
+            />
+          </View>
+          <View style={styles.exerciseInfo}>
+            <Text style={[styles.exerciseName, { color: colors.TEXT.PRIMARY }]}>
+              {exercise.name}
+            </Text>
+            <Text style={[styles.exerciseDescription, { color: colors.TEXT.SECONDARY }]}>
+              {exercise.description}
+            </Text>
+            
+            <View style={styles.benefitChips}>
+              {exercise.benefits.slice(0, 2).map((benefit, index) => (
+                <Chip 
+                  key={index}
+                  style={styles.benefitChip}
+                  textStyle={{ fontSize: 10 }}
+                >
+                  {benefit}
+                </Chip>
+              ))}
+            </View>
+          </View>
         </View>
-        <View style={styles.exerciseInfo}>
-          <Text style={[styles.exerciseName, { color: colors.TEXT.PRIMARY }]}>
-            {exercise.name}
-          </Text>
-          <Text style={[styles.exerciseDescription, { color: colors.TEXT.SECONDARY }]}>
-            {exercise.description}
-          </Text>
-        </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </MotiView>
   );
 }
 
 export default function Breath() {
   const { colors } = useTheme();
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setIsAuthenticated(!!user);
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
@@ -437,15 +1031,19 @@ export default function Breath() {
           <Title 
             style={[styles.pageTitle, { color: colors.TEXT.PRIMARY }]}
           >
-            Breathing Exercises
+            Mindful Breathing
           </Title>
           <Text style={[styles.pageSubtitle, { color: colors.TEXT.SECONDARY }]}>
-            Calm your mind with these guided exercises
+            Take a moment to breathe and find your balance
           </Text>
         </View>
+        
+        <RecommendedExercise onSelectExercise={setSelectedExercise} />
+        
+        {isAuthenticated && <StatsCard />}
 
-        <Text style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
-          Exercises
+        <Text style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY, marginTop: 24 }]}>
+          Breathing Exercises
         </Text>
         
         <View style={styles.exercisesGrid}>
@@ -533,6 +1131,17 @@ const styles = StyleSheet.create({
   exerciseDescription: {
     fontSize: 14,
     lineHeight: 20,
+    marginBottom: 6,
+  },
+  benefitChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  benefitChip: {
+    marginRight: 6,
+    marginBottom: 4,
+    height: 22,
   },
   moodContainer: {
     margin: 16,
@@ -570,6 +1179,30 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontWeight: '500',
   },
+  moodHistoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+  },
+  moodHistoryContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  moodTrend: {
+    alignItems: 'center',
+  },
+  notesContainer: {
+    marginBottom: 16,
+  },
+  notesInput: {
+    borderRadius: 8,
+    padding: 12,
+    textAlignVertical: 'top',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -597,9 +1230,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
+  headerActions: {
+    flexDirection: 'row',
+  },
   exerciseContent: {
     alignItems: 'center',
     paddingVertical: 20,
+  },
+  sessionStats: {
+    marginBottom: 10,
   },
   circleContainer: {
     width: 200,
@@ -619,6 +1258,10 @@ const styles = StyleSheet.create({
   circleContent: {
     alignItems: 'center',
   },
+  controlsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   controlButton: {
     width: 64,
     height: 64,
@@ -633,5 +1276,101 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  resetButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 16,
+  },
+  startButton: {
+    paddingHorizontal: 20,
+    borderRadius: 24,
+  },
+  infoContainer: {
+    padding: 16,
+  },
+  benefitsList: {
+    marginBottom: 12,
+  },
+  benefitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  patternInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 24,
+  },
+  patternItem: {
+    alignItems: 'center',
+  },
+  startInfoButton: {
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  recommendedCard: {
+    padding: 16,
+    marginBottom: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  recommendedContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  recommendedLabel: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  recommendedTitle: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  recommendedDescription: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    marginBottom: 16,
+    maxWidth: '80%',
+  },
+  recommendedIconContainer: {
+    marginLeft: 'auto',
+  },
+  statsCard: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+    borderRadius: 16,
+    elevation: 2,
+  },
+  statsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginVertical: 4,
+  },
+  statLabel: {
+    fontSize: 12,
   },
 }); 
