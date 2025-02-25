@@ -4,7 +4,7 @@ import { getNavigationTheme } from '../../src/styles/theme';
 import { MainTabParamList } from '../../src/types/navigation';
 import { useTheme } from '../../src/contexts/theme';
 import React from 'react';
-import { View, Animated, Pressable, StyleSheet, Dimensions, Switch, Platform, ScrollView } from 'react-native';
+import { View, Animated, Pressable, StyleSheet, Dimensions, Switch, Platform, ScrollView, TextStyle } from 'react-native';
 import { Avatar, Text, IconButton, Button, Divider, RadioButton, Menu } from 'react-native-paper';
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../src/lib/supabase';
@@ -12,6 +12,7 @@ import { useRouter, usePathname } from 'expo-router';
 import * as Font from 'expo-font';
 import { useFonts } from 'expo-font';
 import { BlurView } from 'expo-blur';
+import * as SplashScreen from 'expo-splash-screen';
 
 const TAB_ICONS = {
   breath: 'weather-windy',
@@ -81,7 +82,7 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
         elevation: 0,
         borderTopLeftRadius: cornerRadius,
         borderTopRightRadius: cornerRadius,
-        backgroundColor: theme === 'dark' ? '#121212' : '#FFFFFF', // Solid colors instead of transparent
+        backgroundColor: theme === 'dark' ? '#121212' : '#f1f6f9', // Updated to light theme background color
       }}>
         {visibleRoutes.map((route: any, index: number) => {
           const { options } = descriptors[route.key];
@@ -208,6 +209,37 @@ type ProfileData = {
   profile_pic_url: string | null;
 };
 
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
+
+// Create a custom Text component that works with React Native Paper
+const FontText = ({ 
+  style, 
+  fontFamily, 
+  children, 
+  ...restProps 
+}: { 
+  style?: any, 
+  fontFamily?: string, 
+  children: React.ReactNode,
+  [key: string]: any 
+}) => {
+  // Build the style object with font family
+  const fontStyle: TextStyle = fontFamily 
+    ? { 
+        fontFamily,
+        // On Android, using both fontFamily and fontWeight: 'bold' can cause issues
+        ...(Platform.OS === 'android' ? { fontWeight: 'normal' } : {})
+      } 
+    : {};
+  
+  return (
+    <Text style={[fontStyle, style]} {...restProps}>
+      {children}
+    </Text>
+  );
+};
+
 export default function MainLayout() {
   const { theme, colors, toggleTheme, palette, setColorPalette } = useTheme();
   const navigationTheme = getNavigationTheme(theme);
@@ -218,10 +250,17 @@ export default function MainLayout() {
   const pathname = usePathname();
   const [paletteMenuVisible, setPaletteMenuVisible] = useState(false);
   
-  // Load custom fonts
+  // Load custom fonts - update to use the exact font name from file
   const [fontsLoaded] = useFonts({
     'Montserrat-Bold': require('../../assets/fonts/Montserrat-Bold.ttf'),
   });
+  
+  // Hide splash screen once fonts are loaded
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
   
   // Check if we're on a chat detail page (chat/[id]) or Wall-E chat
   const isOnChatDetail = pathname.match(/\/chat\/[^\/]+$/) || pathname.includes('/wall-e');
@@ -338,16 +377,16 @@ export default function MainLayout() {
             tabBar={(props) => isOnChatDetail ? null : <CustomTabBar {...props} colors={colors} />}
             screenOptions={{
               headerTitle: () => (
-                <Text 
+                <FontText 
+                  fontFamily='Montserrat-Bold'
                   style={{ 
-                    fontFamily: 'Montserrat-Bold',
-                    fontSize: 24, 
-                    fontWeight: 'bold',
+                    fontSize: 34,
+                    fontWeight: Platform.OS === 'android' ? undefined : 'bold',
                     color: colors.TAB_BAR.ACTIVE,
-                    letterSpacing: 0.6,
+                    letterSpacing: 6.5,
                     textShadowColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
                     textShadowOffset: { width: 0, height: 1 },
-                    textShadowRadius: 1.5,
+                    textShadowRadius: 2.5,
                     // Slight text outline effect for better readability
                     ...(Platform.OS === 'ios' ? {
                       shadowColor: theme === 'dark' ? colors.TEXT.PRIMARY : colors.TEXT.SECONDARY,
@@ -358,7 +397,7 @@ export default function MainLayout() {
                   }}
                 >
                   Saner
-                </Text>
+                </FontText>
               ),
               header: ({ route, options, navigation }) => {
                 const title = typeof options.headerTitle === 'function' 
