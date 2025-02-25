@@ -377,27 +377,33 @@ export default function MainLayout() {
             tabBar={(props) => isOnChatDetail ? null : <CustomTabBar {...props} colors={colors} />}
             screenOptions={{
               headerTitle: () => (
-                <FontText 
-                  fontFamily='Montserrat-Bold'
-                  style={{ 
-                    fontSize: 34,
-                    fontWeight: Platform.OS === 'android' ? undefined : 'bold',
-                    color: colors.TAB_BAR.ACTIVE,
-                    letterSpacing: 6.5,
-                    textShadowColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
-                    textShadowOffset: { width: 0, height: 1 },
-                    textShadowRadius: 2.5,
-                    // Slight text outline effect for better readability
-                    ...(Platform.OS === 'ios' ? {
-                      shadowColor: theme === 'dark' ? colors.TEXT.PRIMARY : colors.TEXT.SECONDARY,
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: 0.2,
-                      shadowRadius: 0.5,
-                    } : {})
-                  }}
-                >
-                  Saner
-                </FontText>
+                <View style={{
+                  justifyContent: 'center',
+                  height: '100%',
+                  paddingTop: 10,
+                }}>
+                  <FontText 
+                    fontFamily='Montserrat-Bold'
+                    style={{ 
+                      fontSize: 34,
+                      fontWeight: Platform.OS === 'android' ? undefined : 'bold',
+                      color: colors.TAB_BAR.ACTIVE,
+                      letterSpacing: 6.5,
+                      textShadowColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 2.5,
+                      // Slight text outline effect for better readability
+                      ...(Platform.OS === 'ios' ? {
+                        shadowColor: theme === 'dark' ? colors.TEXT.PRIMARY : colors.TEXT.SECONDARY,
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 0.5,
+                      } : {})
+                    }}
+                  >
+                    Saner
+                  </FontText>
+                </View>
               ),
               header: ({ route, options, navigation }) => {
                 const title = typeof options.headerTitle === 'function' 
@@ -420,6 +426,7 @@ export default function MainLayout() {
                 <View style={{ 
                   flexDirection: 'row', 
                   alignItems: 'center',
+                  height: '100%',
                 }}>
                   <IconButton
                     icon="magnify"
