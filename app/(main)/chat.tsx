@@ -1,5 +1,5 @@
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
-import { Title, Text, List, Avatar, Button, ActivityIndicator, Surface, Divider, Badge } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, RefreshControl, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
+import { Title, Text, List, Avatar, Button, ActivityIndicator, Surface, Divider, Badge, IconButton } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../src/lib/supabase';
@@ -54,6 +54,7 @@ export default function Chat() {
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([]);
   const [chatList, setChatList] = useState<ChatListItem[]>([]);
   const [unreadWallECount, setUnreadWallECount] = useState(0);
+  const [message, setMessage] = useState('');
 
   const fetchWallEUnreadCount = async () => {
     try {
@@ -199,107 +200,119 @@ export default function Chat() {
   }
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.BACKGROUND }]}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          colors={[colors.TAB_BAR.ACTIVE]}
-          tintColor={colors.TAB_BAR.ACTIVE}
-        />
-      }
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: colors.BACKGROUND }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={80}
     >
-      <MotiView
-        from={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'timing', duration: 500 }}
-      >
-        <Surface style={[styles.wallECard, { backgroundColor: colors.SURFACE }]}>
-          <List.Item
-            title="Wall-E"
-            description="Your Mental Health Support Companion"
-            left={() => (
-              <Avatar.Icon
-                size={48}
-                icon="robot"
-                style={{ backgroundColor: colors.TAB_BAR.ACTIVE }}
-              />
-            )}
-            right={() => unreadWallECount > 0 && (
-              <View style={styles.badgeContainer}>
-                <Badge size={24} style={{ backgroundColor: colors.TAB_BAR.ACTIVE }}>
-                  {unreadWallECount}
-                </Badge>
-              </View>
-            )}
-            onPress={() => router.push('/(main)/wall-e')}
-            titleStyle={{ color: colors.TEXT.PRIMARY }}
-            descriptionStyle={{ color: colors.TEXT.SECONDARY }}
+      <ScrollView
+        style={[styles.scrollContainer, { backgroundColor: colors.BACKGROUND }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.TAB_BAR.ACTIVE]}
+            tintColor={colors.TAB_BAR.ACTIVE}
           />
-        </Surface>
-      </MotiView>
-
-      {connectionRequests.length > 0 && (
-        <View style={styles.section}>
-          <Title style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
-            Connection Requests
-          </Title>
-          {connectionRequests.map((request, index) => (
-            <MotiView
-              key={request.id}
-              from={{ opacity: 0, translateX: -20 }}
-              animate={{ opacity: 1, translateX: 0 }}
-              transition={{ type: 'timing', duration: 500, delay: index * 100 }}
-            >
-              <Surface style={[styles.requestCard, { backgroundColor: colors.SURFACE }]}>
-                <View style={styles.requestHeader}>
-                  <Avatar.Image
-                    size={48}
-                    source={{ uri: request.requester.profile_pic_url || 'https://i.pravatar.cc/300' }}
-                  />
-                  <View style={styles.requestInfo}>
-                    <Text variant="titleMedium" style={{ color: colors.TEXT.PRIMARY }}>
-                      {request.requester.name || 'Anonymous'}
-                    </Text>
-                    <Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>
-                      @{request.requester.username || 'username'}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.requestActions}>
-                  <Button
-                    mode="contained"
-                    onPress={() => handleConnectionResponse(request.id, true)}
-                    style={[styles.actionButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
-                  >
-                    Accept
-                  </Button>
-                  <Button
-                    mode="outlined"
-                    onPress={() => handleConnectionResponse(request.id, false)}
-                    style={styles.actionButton}
-                  >
-                    Decline
-                  </Button>
-                </View>
-              </Surface>
-              {index < connectionRequests.length - 1 && (
-                <Divider style={[styles.divider, { backgroundColor: colors.BORDER }]} />
+        }
+      >
+        <MotiView
+          from={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'timing', duration: 500 }}
+        >
+          <Surface style={[styles.wallECard, { backgroundColor: colors.SURFACE }]}>
+            <List.Item
+              title="Wall-E"
+              description="Your Mental Health Support Companion"
+              left={() => (
+                <Avatar.Icon
+                  size={48}
+                  icon="robot"
+                  style={{ backgroundColor: colors.TAB_BAR.ACTIVE }}
+                />
               )}
-            </MotiView>
-          ))}
-        </View>
-      )}
+              right={() => unreadWallECount > 0 && (
+                <View style={styles.badgeContainer}>
+                  <Badge size={24} style={{ backgroundColor: colors.TAB_BAR.ACTIVE }}>
+                    {unreadWallECount}
+                  </Badge>
+                </View>
+              )}
+              onPress={() => router.push('/(main)/wall-e')}
+              titleStyle={{ color: colors.TEXT.PRIMARY }}
+              descriptionStyle={{ color: colors.TEXT.SECONDARY }}
+            />
+          </Surface>
+        </MotiView>
 
-      <View style={styles.section}>
-        <Title style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
-          Messages
+        {connectionRequests.length > 0 && (
+          <View style={styles.section}>
+            <Title style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
+              Connection Requests
+            </Title>
+            {connectionRequests.map((request, index) => (
+              <MotiView
+                key={request.id}
+                from={{ opacity: 0, translateX: -20 }}
+                animate={{ opacity: 1, translateX: 0 }}
+                transition={{ type: 'timing', duration: 500, delay: index * 100 }}
+              >
+                <Surface style={[styles.requestCard, { backgroundColor: colors.SURFACE }]}>
+                  <View style={styles.requestHeader}>
+                    <Avatar.Image
+                      size={48}
+                      source={{ uri: request.requester.profile_pic_url || 'https://i.pravatar.cc/300' }}
+                    />
+                    <View style={styles.requestInfo}>
+                      <Text variant="titleMedium" style={{ color: colors.TEXT.PRIMARY }}>
+                        {request.requester.name || 'Anonymous'}
+                      </Text>
+                      <Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>
+                        @{request.requester.username || 'username'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.requestActions}>
+                    <Button
+                      mode="contained"
+                      onPress={() => handleConnectionResponse(request.id, true)}
+                      style={[styles.actionButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      mode="outlined"
+                      onPress={() => handleConnectionResponse(request.id, false)}
+                      style={styles.actionButton}
+                    >
+                      Decline
+                    </Button>
+                  </View>
+                </Surface>
+                {index < connectionRequests.length - 1 && (
+                  <Divider style={[styles.divider, { backgroundColor: colors.BORDER }]} />
+                )}
+              </MotiView>
+            ))}
+          </View>
+        )}
+
+        <Title style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY, marginTop: 16 }]}>
+          Conversations
         </Title>
+
         {chatList.length === 0 ? (
-          <Text style={[styles.emptyText, { color: colors.TEXT.SECONDARY }]}>
-            No messages yet. Connect with other users to start chatting!
-          </Text>
+          <MotiView
+            from={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ type: 'timing', duration: 500, delay: 300 }}
+            style={styles.emptyState}
+          >
+            <Text style={{ color: colors.TEXT.SECONDARY, textAlign: 'center' }}>
+              No conversations yet. Start chatting with Wall-E or connect with friends!
+            </Text>
+          </MotiView>
         ) : (
           chatList.map((chat, index) => (
             <MotiView
@@ -342,13 +355,43 @@ export default function Chat() {
             </MotiView>
           ))
         )}
+        
+        {/* Add more height at the bottom to ensure scrolling works well with the input bar */}
+        <View style={{ height: 80 }} />
+      </ScrollView>
+
+      {/* New message input bar at the bottom */}
+      <View style={[styles.messageInputContainer, { 
+        backgroundColor: colors.SURFACE,
+        borderTopColor: colors.BORDER
+      }]}>
+        <TextInput
+          value={message}
+          onChangeText={setMessage}
+          placeholder="Search or start a new chat..."
+          placeholderTextColor={colors.TEXT.SECONDARY}
+          style={[styles.messageInput, { 
+            backgroundColor: colors.BACKGROUND,
+            color: colors.TEXT.PRIMARY
+          }]}
+        />
+        <IconButton
+          icon="magnify"
+          size={24}
+          iconColor={colors.TAB_BAR.ACTIVE}
+          style={styles.sendButton}
+          onPress={() => router.push('/(main)/search')}
+        />
       </View>
-    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  scrollContainer: {
     flex: 1,
   },
   section: {
@@ -382,9 +425,10 @@ const styles = StyleSheet.create({
   divider: {
     marginVertical: 8,
   },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 16,
+  emptyState: {
+    marginTop: 32,
+    marginHorizontal: 32,
+    alignItems: 'center',
   },
   chatCard: {
     borderRadius: 12,
@@ -413,4 +457,25 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 1.41,
   },
+  messageInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 0.5,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  messageInput: {
+    flex: 1,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    fontSize: 16,
+  },
+  sendButton: {
+    marginLeft: 8,
+  }
 }); 

@@ -8,7 +8,7 @@ import { View, Animated, Pressable, StyleSheet, Dimensions, Switch, Platform, Sc
 import { Avatar, Text, IconButton, Button, Divider, RadioButton, Menu } from 'react-native-paper';
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../src/lib/supabase';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 
 const TAB_ICONS = {
   breath: 'weather-windy',
@@ -161,7 +161,11 @@ export default function MainLayout() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const slideAnim = useRef(new Animated.Value(Dimensions.get('window').width)).current;
   const router = useRouter();
+  const pathname = usePathname();
   const [paletteMenuVisible, setPaletteMenuVisible] = useState(false);
+  
+  // Check if we're on a chat detail page (chat/[id]) or Wall-E chat
+  const isOnChatDetail = pathname.match(/\/chat\/[^\/]+$/) || pathname.includes('/wall-e');
 
   const fetchProfile = async () => {
     try {
@@ -222,7 +226,7 @@ export default function MainLayout() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.BACKGROUND }}>
       <Tabs
-        tabBar={(props) => <CustomTabBar {...props} colors={colors} />}
+        tabBar={(props) => isOnChatDetail ? null : <CustomTabBar {...props} colors={colors} />}
         screenOptions={{
           headerTitle: "",
           headerStyle: {
