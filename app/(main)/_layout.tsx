@@ -42,7 +42,9 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
   return (
     <View style={{
       flexDirection: 'row',
-      backgroundColor: colors.SURFACE,
+      backgroundColor: Platform.OS === 'ios' ? 
+        colors.SURFACE + 'DD' : // Semi-transparent surface for iOS
+        colors.SURFACE,
       height: Platform.OS === 'ios' ? 90 : 65,
       paddingBottom: Platform.OS === 'ios' ? 20 : 0,
       borderTopWidth: 0.5,
@@ -55,12 +57,12 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
       paddingTop: 12,
       elevation: 0,
       shadowColor: 'transparent',
-      // Add subtle shadow for iOS
+      // Add refined shadow for iOS
       ...(Platform.OS === 'ios' ? {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.08,
-        shadowRadius: 6,
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
       } : {}),
     }}>
       {visibleRoutes.map((route: any, index: number) => {
@@ -95,6 +97,7 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
               justifyContent: 'center',
               minHeight: 45,
               position: 'relative',
+              paddingVertical: 4,
             }}
             android_ripple={{ 
               color: colors.BORDER,
@@ -107,8 +110,10 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 position: 'relative',
+                width: '100%',
+                paddingVertical: 8,
                 transform: [{ 
-                  scale: isFocused ? 1.15 : 1 
+                  scale: isFocused ? 1.08 : 1 
                 }],
               }}
             >
@@ -116,12 +121,13 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
                 <Animated.View 
                   style={{
                     position: 'absolute',
-                    top: -4,
-                    left: -9,
-                    right: -9,
-                    bottom: -4,
-                    backgroundColor: colors.TAB_BAR.ACTIVE + '15', // Add transparency
-                    borderRadius: 12,
+                    top: 0,
+                    left: 8,
+                    right: 8,
+                    bottom: 0,
+                    backgroundColor: 
+                      colors.TAB_BAR.ACTIVE + (Platform.OS === 'ios' ? '12' : '08'), // Subtle highlight
+                    borderRadius: 16,
                     zIndex: -1,
                   }}
                 />
@@ -131,7 +137,7 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
                 size={24}
                 color={isFocused ? colors.TAB_BAR.ACTIVE : colors.TAB_BAR.INACTIVE}
                 style={{
-                  marginBottom: 3,
+                  marginBottom: 4,
                   opacity: isFocused ? 1 : 0.7,
                 }}
               />
@@ -142,6 +148,7 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
                   fontWeight: isFocused ? '600' : '400',
                   opacity: isFocused ? 1 : 0.7,
                   letterSpacing: 0.3,
+                  marginTop: 1,
                 }}
               >
                 {label}
@@ -150,12 +157,11 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
                 <View
                   style={{
                     position: 'absolute',
-                    top: -4,
-                    width: 4,
-                    height: 4,
-                    borderRadius: 2,
+                    bottom: -2,
+                    width: 12,
+                    height: 2,
+                    borderRadius: 1,
                     backgroundColor: colors.TAB_BAR.ACTIVE,
-                    elevation: 2,
                   }}
                 />
               )}
@@ -283,18 +289,34 @@ export default function MainLayout() {
                 fontSize: 24, 
                 fontWeight: 'bold',
                 color: colors.TAB_BAR.ACTIVE,
-                letterSpacing: 0.8,
+                letterSpacing: 0.6,
                 marginLeft: 4,
-                textShadowColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                textShadowColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
                 textShadowOffset: { width: 0, height: 1 },
-                textShadowRadius: 2,
+                textShadowRadius: 1.5,
+                // Slight text outline effect for better readability
+                ...(Platform.OS === 'ios' ? {
+                  shadowColor: theme === 'dark' ? colors.TEXT.PRIMARY : colors.TEXT.SECONDARY,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 0.5,
+                } : {})
               }}
             >
               Saner
             </Text>
           ),
           headerStyle: {
-            backgroundColor: colors.SURFACE,
+            backgroundColor: theme === 'dark' ? 
+              'rgba(18, 18, 18, 0.95)' : // Semi-transparent dark surface
+              'rgba(248, 249, 250, 0.95)', // Semi-transparent light surface
+            borderBottomWidth: 0.5,
+            borderBottomColor: colors.BORDER,
+            shadowColor: theme === 'dark' ? 'transparent' : 'rgba(0,0,0,0.1)',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.08,
+            shadowRadius: 2,
+            elevation: 0,
           },
           headerShadowVisible: false,
           headerRight: () => (
@@ -302,9 +324,17 @@ export default function MainLayout() {
               <IconButton
                 icon="magnify"
                 size={24}
-                iconColor={colors.TAB_BAR.ACTIVE}
+                iconColor={colors.ICONS.PRIMARY}
                 onPress={() => router.push('/(main)/search')}
-                style={{ marginRight: 4 }}
+                style={{ 
+                  marginRight: 4,
+                  backgroundColor: Platform.OS === 'ios' ? 
+                    (theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)') : 
+                    'transparent',
+                  borderRadius: 30,
+                  width: 40,
+                  height: 40,
+                }}
               />
               {profile?.profile_pic_url ? (
                 <Pressable
@@ -313,6 +343,10 @@ export default function MainLayout() {
                     marginRight: 16,
                     opacity: pressed ? 0.7 : 1,
                     transform: [{ scale: pressed ? 0.95 : 1 }],
+                    borderRadius: 20,
+                    borderWidth: theme === 'dark' ? 1 : 0,
+                    borderColor: theme === 'dark' ? colors.BORDER : 'transparent',
+                    padding: 2,
                   })}
                 >
                   <Avatar.Image
@@ -324,9 +358,17 @@ export default function MainLayout() {
                 <IconButton
                   icon="account-circle-outline"
                   size={28}
-                  iconColor={colors.TAB_BAR.ACTIVE}
+                  iconColor={colors.ICONS.PRIMARY}
                   onPress={toggleMenu}
-                  style={{ marginRight: 8 }}
+                  style={{ 
+                    marginRight: 8,
+                    backgroundColor: Platform.OS === 'ios' ? 
+                      (theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)') : 
+                      'transparent',
+                    borderRadius: 30,
+                    width: 40,
+                    height: 40,
+                  }}
                 />
               )}
             </View>
