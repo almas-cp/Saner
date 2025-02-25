@@ -105,7 +105,7 @@ const exercises: Exercise[] = [
 ];
 
 function MoodSlider() {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const [mood, setMood] = useState(50);
   const [submitted, setSubmitted] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
@@ -151,11 +151,11 @@ function MoodSlider() {
   };
 
   const getMoodEmoji = (value: number) => {
-    if (value < 20) return { icon: 'emoticon-cry-outline' as const, color: '#E53935', text: 'Feeling low' };
-    if (value < 40) return { icon: 'emoticon-sad-outline' as const, color: '#FF6B6B', text: 'Not great' };
-    if (value < 60) return { icon: 'emoticon-neutral-outline' as const, color: '#FFB347', text: 'Okay' };
-    if (value < 80) return { icon: 'emoticon-happy-outline' as const, color: '#4AD66D', text: 'Good' };
-    return { icon: 'emoticon-excited-outline' as const, color: '#2E7D32', text: 'Excellent!' };
+    if (value < 20) return { icon: 'emoticon-cry-outline' as const, color: theme === 'dark' ? '#EF5350' : '#E53935', text: 'Feeling low' };
+    if (value < 40) return { icon: 'emoticon-sad-outline' as const, color: theme === 'dark' ? '#FF8A80' : '#FF6B6B', text: 'Not great' };
+    if (value < 60) return { icon: 'emoticon-neutral-outline' as const, color: theme === 'dark' ? '#FFD180' : '#FFB347', text: 'Okay' };
+    if (value < 80) return { icon: 'emoticon-happy-outline' as const, color: theme === 'dark' ? '#B9F6CA' : '#4AD66D', text: 'Good' };
+    return { icon: 'emoticon-excited-outline' as const, color: theme === 'dark' ? '#69F0AE' : '#2E7D32', text: 'Excellent!' };
   };
 
   const currentMood = getMoodEmoji(mood);
@@ -224,11 +224,11 @@ function MoodSlider() {
         marginHorizontal: 16,
         marginBottom: 16,
         padding: 16,
-        shadowColor: colors.TEXT.PRIMARY,
+        shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.9)' : colors.TEXT.PRIMARY,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
+        shadowOpacity: theme === 'dark' ? 0.2 : 0.08,
+        shadowRadius: theme === 'dark' ? 12 : 8,
+        elevation: theme === 'dark' ? 5 : 3,
         borderWidth: 0.5,
         borderColor: colors.BORDER,
       }
@@ -295,6 +295,7 @@ function MoodSlider() {
               onPress={() => setShowNotes(true)}
               mode="text"
               style={{ marginBottom: 12 }}
+              textColor={colors.TAB_BAR.ACTIVE}
             >
               Add notes
             </Button>
@@ -308,7 +309,9 @@ function MoodSlider() {
                 onChangeText={setNotes}
                 multiline
                 numberOfLines={3}
-                style={[styles.notesInput, { backgroundColor: colors.BACKGROUND }]}
+                style={[styles.notesInput, { backgroundColor: theme === 'dark' ? colors.SURFACE : colors.BACKGROUND }]}
+                placeholderTextColor={colors.TEXT.TERTIARY}
+                textColor={colors.TEXT.PRIMARY}
               />
             </View>
           )}
@@ -317,6 +320,7 @@ function MoodSlider() {
             onPress={handleSubmit}
             mode="contained"
             style={[styles.moodButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
+            labelStyle={{ color: theme === 'dark' ? colors.BACKGROUND : '#FFFFFF' }}
           >
             Log Mood
           </Button>
@@ -335,7 +339,10 @@ function MoodSlider() {
           
           {isAuthenticated && moodHistory.length > 0 && (
             <Pressable 
-              style={[styles.moodHistoryButton, { borderColor: colors.BORDER }]}
+              style={[styles.moodHistoryButton, { 
+                borderColor: colors.BORDER,
+                backgroundColor: theme === 'dark' ? colors.SURFACE : 'transparent',
+              }]}
               onPress={() => router.push('/(main)/breath/mood-history')}
             >
               <View style={styles.moodHistoryContent}>
@@ -354,7 +361,7 @@ function MoodSlider() {
                   <MaterialCommunityIcons
                     name={moodAnalysis.trend === 'improving' ? 'trending-up' : 'trending-down'}
                     size={20}
-                    color={moodAnalysis.trend === 'improving' ? '#4CAF50' : '#F44336'}
+                    color={moodAnalysis.trend === 'improving' ? (theme === 'dark' ? '#69F0AE' : '#4CAF50') : (theme === 'dark' ? '#FF8A80' : '#F44336')}
                   />
                 </View>
               )}
@@ -367,7 +374,7 @@ function MoodSlider() {
 }
 
 function RecommendedExercise({ onSelectExercise }: { onSelectExercise: (exercise: Exercise) => void }) {
-  const { colors } = useTheme();
+  const { colors, theme, colorPalette } = useTheme();
   const [recommendation, setRecommendation] = useState<Exercise | null>(null);
   
   useEffect(() => {
@@ -391,6 +398,15 @@ function RecommendedExercise({ onSelectExercise }: { onSelectExercise: (exercise
   
   if (!recommendation) return null;
   
+  // Dynamically select colors based on current theme and palette
+  const gradientColors = (() => {
+    if (colorPalette === 'ocean') return theme === 'dark' ? ['#1565C0', '#0D47A1'] as const : ['#4a6fa1', '#166bb5'] as const;
+    if (colorPalette === 'mint') return theme === 'dark' ? ['#2E7D32', '#1B5E20'] as const : ['#4AD66D', '#388E3C'] as const;
+    if (colorPalette === 'berry') return theme === 'dark' ? ['#C62828', '#B71C1C'] as const : ['#E57373', '#D32F2F'] as const;
+    if (colorPalette === 'citric') return theme === 'dark' ? ['#EF6C00', '#E65100'] as const : ['#FFB347', '#F57C00'] as const;
+    return theme === 'dark' ? ['#5E35B1', '#4527A0'] as const : ['#4a6fa1', '#166bb5'] as const; // Default - purple theme
+  })();
+  
   return (
     <MotiView
       from={{ opacity: 0, translateY: 15 }}
@@ -399,10 +415,17 @@ function RecommendedExercise({ onSelectExercise }: { onSelectExercise: (exercise
       style={{ marginHorizontal: 16, marginBottom: 24 }}
     >
       <LinearGradient
-        colors={['#4a6fa1', '#166bb5']}
+        colors={gradientColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.recommendedCard, { borderRadius: 20 }]}
+        style={[styles.recommendedCard, { 
+          borderRadius: 20,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: theme === 'dark' ? 0.3 : 0.2,
+          shadowRadius: 6,
+          elevation: theme === 'dark' ? 8 : 4,
+        }]}
       >
         <View style={styles.recommendedContent}>
           <View>
@@ -414,7 +437,7 @@ function RecommendedExercise({ onSelectExercise }: { onSelectExercise: (exercise
               mode="contained" 
               onPress={() => onSelectExercise(recommendation)}
               style={styles.startButton}
-              labelStyle={{ color: '#166bb5' }}
+              labelStyle={{ color: gradientColors[0] }}
               buttonColor="#ffffff"
             >
               Start Now
@@ -436,7 +459,7 @@ function RecommendedExercise({ onSelectExercise }: { onSelectExercise: (exercise
 }
 
 function StatsCard() {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const [stats, setStats] = useState({
     weeklyMinutes: 0,
     totalSessions: 0,
@@ -526,7 +549,15 @@ function StatsCard() {
   };
   
   return (
-    <Card style={[styles.statsCard, { backgroundColor: colors.CARD }]}>
+    <Card style={[styles.statsCard, { 
+      backgroundColor: colors.CARD,
+      borderRadius: 16,
+      elevation: theme === 'dark' ? 4 : 2,
+      shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.5)' : '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: theme === 'dark' ? 0.25 : 0.1,
+      shadowRadius: theme === 'dark' ? 8 : 4,
+    }]}>
       <Card.Content>
         <Text style={[styles.statsTitle, { color: colors.TEXT.PRIMARY }]}>
           Your Progress
@@ -551,7 +582,7 @@ function StatsCard() {
             <MaterialCommunityIcons 
               name="fire" 
               size={22} 
-              color="#FF9800" 
+              color={theme === 'dark' ? "#FFB74D" : "#FF9800"} 
             />
             <Text style={[styles.statValue, { color: colors.TEXT.PRIMARY }]}>
               {stats.streak}
@@ -565,7 +596,7 @@ function StatsCard() {
             <MaterialCommunityIcons 
               name="meditation" 
               size={22} 
-              color="#9C27B0" 
+              color={theme === 'dark' ? "#CE93D8" : "#9C27B0"} 
             />
             <Text style={[styles.statValue, { color: colors.TEXT.PRIMARY }]}>
               {stats.totalSessions}
@@ -591,7 +622,7 @@ function ExerciseModal({ exercise, visible, onClose }: {
   visible: boolean, 
   onClose: () => void 
 }) {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const [phase, setPhase] = useState<'inhale' | 'hold1' | 'exhale' | 'hold2'>('inhale');
   const [timeLeft, setTimeLeft] = useState(0);
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -752,12 +783,21 @@ function ExerciseModal({ exercise, visible, onClose }: {
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
+      <View style={[styles.modalOverlay, { 
+        backgroundColor: theme === 'dark' ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.5)' 
+      }]}>
         <MotiView
           from={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'timing', duration: 400 }}
-          style={[styles.modalContent, { backgroundColor: colors.SURFACE }]}
+          style={[styles.modalContent, { 
+            backgroundColor: colors.SURFACE,
+            shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.7)' : '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: theme === 'dark' ? 0.3 : 0.25,
+            shadowRadius: theme === 'dark' ? 10 : 3.84,
+            elevation: theme === 'dark' ? 8 : 5,
+          }]}
         >
           <View style={styles.modalHeader}>
             <Title style={{ color: colors.TEXT.PRIMARY }}>{exercise.name}</Title>
@@ -837,7 +877,9 @@ function ExerciseModal({ exercise, visible, onClose }: {
                   setShowInfo(false);
                   if (!hasStarted) startExercise();
                 }}
-                style={[styles.startInfoButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
+                style={[styles.startInfoButton]}
+                buttonColor={colors.TAB_BAR.ACTIVE}
+                textColor={theme === 'dark' ? colors.BACKGROUND : '#FFFFFF'}
               >
                 {hasStarted ? 'Continue Exercise' : 'Start Exercise'}
               </Button>
@@ -852,7 +894,10 @@ function ExerciseModal({ exercise, visible, onClose }: {
                 </View>
               )}
               
-              <View style={[styles.circleContainer, { borderColor: colors.TAB_BAR.ACTIVE }]}>
+              <View style={[styles.circleContainer, { 
+                borderColor: colors.TAB_BAR.ACTIVE,
+                borderWidth: theme === 'dark' ? 3 : 2,
+              }]}>
                 <Animated.View
                   style={[
                     styles.progressCircle,
@@ -868,7 +913,7 @@ function ExerciseModal({ exercise, visible, onClose }: {
                       ],
                       opacity: progressAnim.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [0.3, 0.15],
+                        outputRange: [0.3, theme === 'dark' ? 0.25 : 0.15],
                       }),
                     },
                   ]}
@@ -889,10 +934,9 @@ function ExerciseModal({ exercise, visible, onClose }: {
               {!hasStarted ? (
                 <Button
                   mode="contained"
-                  style={[
-                    styles.startButton,
-                    { backgroundColor: colors.TAB_BAR.ACTIVE },
-                  ]}
+                  style={[styles.startButton]}
+                  buttonColor={colors.TAB_BAR.ACTIVE}
+                  textColor={theme === 'dark' ? colors.BACKGROUND : '#FFFFFF'}
                   onPress={startExercise}
                   icon="play"
                 >
@@ -903,14 +947,21 @@ function ExerciseModal({ exercise, visible, onClose }: {
                   <Pressable
                     style={[
                       styles.controlButton,
-                      { backgroundColor: colors.TAB_BAR.ACTIVE },
+                      { 
+                        backgroundColor: colors.TAB_BAR.ACTIVE,
+                        shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.7)' : '#000',
+                        shadowOffset: { width: 0, height: 3 },
+                        shadowOpacity: theme === 'dark' ? 0.4 : 0.25,
+                        shadowRadius: theme === 'dark' ? 8 : 3.84,
+                        elevation: theme === 'dark' ? 8 : 5,
+                      },
                     ]}
                     onPress={() => setIsActive(!isActive)}
                   >
                     <MaterialCommunityIcons
                       name={isActive ? 'pause' : 'play'}
                       size={32}
-                      color={colors.BACKGROUND}
+                      color={theme === 'dark' ? colors.BACKGROUND : '#FFFFFF'}
                     />
                   </Pressable>
                   
@@ -942,7 +993,7 @@ function ExerciseModal({ exercise, visible, onClose }: {
 }
 
 function ExerciseCard({ exercise, onPress }: { exercise: Exercise; onPress: () => void }) {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   
   return (
     <MotiView
@@ -957,11 +1008,11 @@ function ExerciseCard({ exercise, onPress }: { exercise: Exercise; onPress: () =
           {
             backgroundColor: colors.CARD,
             borderRadius: 20,
-            shadowColor: colors.TEXT.PRIMARY,
+            shadowColor: theme === 'dark' ? 'rgba(0,0,0,0.5)' : colors.TEXT.PRIMARY,
             shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 3,
+            shadowOpacity: theme === 'dark' ? 0.2 : 0.08,
+            shadowRadius: theme === 'dark' ? 10 : 8,
+            elevation: theme === 'dark' ? 5 : 3,
             borderWidth: 0.5,
             borderColor: colors.BORDER,
             transform: [{ scale: pressed ? 0.98 : 1 }],
@@ -972,7 +1023,11 @@ function ExerciseCard({ exercise, onPress }: { exercise: Exercise; onPress: () =
         <View style={styles.exerciseCardContent}>
           <View style={[
             styles.iconContainer,
-            { backgroundColor: colors.TAB_BAR.ACTIVE + '20' }
+            { 
+              backgroundColor: theme === 'dark' 
+                ? `${colors.TAB_BAR.ACTIVE}40` 
+                : `${colors.TAB_BAR.ACTIVE}20` 
+            }
           ]}>
             <MaterialCommunityIcons
               name={exercise.icon}
@@ -992,8 +1047,15 @@ function ExerciseCard({ exercise, onPress }: { exercise: Exercise; onPress: () =
               {exercise.benefits.slice(0, 2).map((benefit, index) => (
                 <Chip 
                   key={index}
-                  style={styles.benefitChip}
-                  textStyle={{ fontSize: 10 }}
+                  style={[styles.benefitChip, { 
+                    backgroundColor: theme === 'dark' 
+                      ? `${colors.TAB_BAR.ACTIVE}30` 
+                      : `${colors.TAB_BAR.ACTIVE}15`
+                  }]}
+                  textStyle={{ 
+                    fontSize: 10, 
+                    color: theme === 'dark' ? colors.TEXT.SECONDARY : colors.TEXT.PRIMARY
+                  }}
                 >
                   {benefit}
                 </Chip>
@@ -1007,7 +1069,7 @@ function ExerciseCard({ exercise, onPress }: { exercise: Exercise; onPress: () =
 }
 
 export default function Breath() {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
@@ -1029,11 +1091,19 @@ export default function Breath() {
       >
         <View style={styles.header}>
           <Title 
-            style={[styles.pageTitle, { color: colors.TEXT.PRIMARY }]}
+            style={[styles.pageTitle, { 
+              color: colors.TEXT.PRIMARY,
+              fontSize: 28,
+              fontWeight: 'bold',
+            }]}
           >
             Mindful Breathing
           </Title>
-          <Text style={[styles.pageSubtitle, { color: colors.TEXT.SECONDARY }]}>
+          <Text style={[styles.pageSubtitle, { 
+            color: colors.TEXT.SECONDARY,
+            fontSize: 16,
+            lineHeight: 22,
+          }]}>
             Take a moment to breathe and find your balance
           </Text>
         </View>
@@ -1042,7 +1112,12 @@ export default function Breath() {
         
         {isAuthenticated && <StatsCard />}
 
-        <Text style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY, marginTop: 24 }]}>
+        <Text style={[styles.sectionTitle, { 
+          color: colors.TEXT.PRIMARY, 
+          marginTop: 24,
+          fontSize: 20,
+          fontWeight: '600',
+        }]}>
           Breathing Exercises
         </Text>
         
@@ -1056,7 +1131,12 @@ export default function Breath() {
           ))}
         </View>
 
-        <Text style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY, marginTop: 24 }]}>
+        <Text style={[styles.sectionTitle, { 
+          color: colors.TEXT.PRIMARY, 
+          marginTop: 24,
+          fontSize: 20,
+          fontWeight: '600',
+        }]}>
           Mood Tracker
         </Text>
         

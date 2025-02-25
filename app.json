@@ -13,6 +13,14 @@
         "android.permission.RECORD_AUDIO"
       ],
       "package": "com.almas_cp.Saner"
-    }
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "fonts": [
+      {
+        "asset": "assets/fonts/Montserrat-Bold.ttf"
+      }
+    ]
   }
 }

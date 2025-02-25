@@ -9,6 +9,8 @@ import { Avatar, Text, IconButton, Button, Divider, RadioButton, Menu } from 're
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../src/lib/supabase';
 import { useRouter, usePathname } from 'expo-router';
+import * as Font from 'expo-font';
+import { useFonts } from 'expo-font';
 
 const TAB_ICONS = {
   breath: 'weather-windy',
@@ -182,6 +184,11 @@ export default function MainLayout() {
   const pathname = usePathname();
   const [paletteMenuVisible, setPaletteMenuVisible] = useState(false);
   
+  // Load custom fonts
+  const [fontsLoaded] = useFonts({
+    'Saner-Bold': require('../../assets/fonts/Montserrat-Bold.ttf'),
+  });
+  
   // Check if we're on a chat detail page (chat/[id]) or Wall-E chat
   const isOnChatDetail = pathname.match(/\/chat\/[^\/]+$/) || pathname.includes('/wall-e');
 
@@ -263,7 +270,23 @@ export default function MainLayout() {
       <Tabs
         tabBar={(props) => isOnChatDetail ? null : <CustomTabBar {...props} colors={colors} />}
         screenOptions={{
-          headerTitle: "",
+          headerTitle: () => (
+            <Text 
+              style={{ 
+                fontFamily: fontsLoaded ? 'Saner-Bold' : undefined,
+                fontSize: 24, 
+                fontWeight: 'bold',
+                color: colors.TAB_BAR.ACTIVE,
+                letterSpacing: 0.8,
+                marginLeft: 4,
+                textShadowColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                textShadowOffset: { width: 0, height: 1 },
+                textShadowRadius: 2,
+              }}
+            >
+              Saner
+            </Text>
+          ),
           headerStyle: {
             backgroundColor: colors.SURFACE,
           },
