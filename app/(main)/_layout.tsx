@@ -335,7 +335,7 @@ export default function MainLayout() {
 
   const handlePaletteChange = (palette: 'default' | 'citric' | 'mint' | 'berry' | 'ocean') => {
     setColorPalette(palette);
-    setIsMenuOpen(false);
+    setPaletteMenuVisible(false);
   };
 
   // Inside the MainLayout component, add this helper function
