@@ -17,22 +17,24 @@ WHERE posts.user_id = profiles.id;
 CREATE OR REPLACE FUNCTION update_post_author()
 RETURNS TRIGGER AS $$
 BEGIN
-  SELECT 
-    name, 
-    username, 
-    profile_pic_url 
-  INTO 
-    NEW.author_name, 
-    NEW.author_username, 
-    NEW.author_profile_pic
-  FROM profiles 
-  WHERE id = NEW.user_id;
+  -- Get the author information from profiles table
+  UPDATE posts 
+  SET 
+    author_name = p.name,
+    author_username = p.username,
+    author_profile_pic = p.profile_pic_url
+  FROM profiles p
+  WHERE posts.id = NEW.id AND p.id = NEW.user_id;
   
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+-- Drop existing trigger if it exists
+DROP TRIGGER IF EXISTS update_post_author_trigger ON posts;
+
+-- Create new trigger
 CREATE TRIGGER update_post_author_trigger
-BEFORE INSERT ON posts
+AFTER INSERT ON posts
 FOR EACH ROW
 EXECUTE FUNCTION update_post_author();

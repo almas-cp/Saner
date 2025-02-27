@@ -7,6 +7,7 @@ import { supabase } from '../../../src/lib/supabase';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
+import { Platform } from 'react-native';
 
 export default function CreatePost() {
   const { colors } = useTheme();
@@ -102,7 +103,10 @@ export default function CreatePost() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: 120 }}
+      >
         <TextInput
           label="Title"
           value={title}
@@ -163,11 +167,15 @@ export default function CreatePost() {
         />
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { 
+        borderTopColor: colors.BORDER,
+        backgroundColor: colors.BACKGROUND
+      }]}>
         <Button 
           mode="outlined" 
           onPress={() => router.back()}
-          style={styles.button}
+          style={[styles.button, { borderColor: colors.BORDER }]}
+          textColor={colors.TEXT.PRIMARY}
         >
           Cancel
         </Button>
@@ -191,11 +199,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
   },
   input: {
     marginBottom: 16,
     backgroundColor: 'transparent',
+    marginHorizontal: 16,
   },
   imageUpload: {
     height: 120,
@@ -204,6 +212,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     marginBottom: 16,
     overflow: 'hidden',
+    marginHorizontal: 16,
   },
   imagePreview: {
     flex: 1,
@@ -222,8 +231,23 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
     borderTopWidth: 1,
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 90 : 65,
+    left: 0,
+    right: 0,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    zIndex: 1,
   },
   button: {
     flex: 1,
+    borderRadius: 8,
+    minHeight: 45,
   },
 }); 

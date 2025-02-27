@@ -138,11 +138,29 @@ export default function ArticleView() {
     }
   };
 
-  const handleMessage = () => {
+  const handleMessage = async () => {
     if (!currentUserId || !post) return;
     
-    // Navigate to chat with this user
-    router.push(`/(main)/chat/${post.user_id}`);
+    try {
+      // Check if there's an accepted connection between users
+      const { data: connections, error: connectionsError } = await supabase
+        .from('connections')
+        .select('*')
+        .or(`and(requester_id.eq.${currentUserId},target_id.eq.${post.user_id}),and(requester_id.eq.${post.user_id},target_id.eq.${currentUserId})`)
+        .eq('status', 'accepted')
+        .single();
+
+      if (connectionsError || !connections) {
+        alert('You need to connect with this user before starting a chat.');
+        return;
+      }
+
+      // Navigate to chat with this user
+      router.push(`/(main)/chat/${post.user_id}`);
+    } catch (error) {
+      console.error('Error checking connection:', error);
+      alert('You need to connect with this user before starting a chat.');
+    }
   };
 
   const handleViewProfile = () => {
