@@ -17,10 +17,11 @@ type ProfileData = {
   email: string | null;
 };
 
-const ProfileStats = ({ colors }: { colors: any }) => {
+const ProfileStats = () => {
   const [postCount, setPostCount] = useState(0);
   const [followerCount, setFollowerCount] = useState(0);
   const router = useRouter();
+  const paperTheme = usePaperTheme();
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -55,7 +56,7 @@ const ProfileStats = ({ colors }: { colors: any }) => {
   }, []);
 
   return (
-    <View style={[styles.statsContainer, { backgroundColor: colors.SURFACE }]}>
+    <View style={[styles.statsContainer, { backgroundColor: paperTheme.colors.surface }]}>
       <Pressable 
         style={({ pressed }) => [
           styles.statItem,
@@ -63,19 +64,19 @@ const ProfileStats = ({ colors }: { colors: any }) => {
         ]}
         onPress={() => router.push('/(main)/profile/posts')}
       >
-        <Text variant="headlineMedium" style={{ color: colors.TEXT.PRIMARY, fontWeight: 'bold' }}>
+        <Text variant="headlineMedium" style={{ color: paperTheme.colors.onSurface, fontWeight: 'bold' }}>
           {postCount}
         </Text>
-        <Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>
+        <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant }}>
           Posts
         </Text>
       </Pressable>
-      <View style={[styles.statDivider, { backgroundColor: colors.BORDER }]} />
+      <View style={[styles.statDivider, { backgroundColor: paperTheme.colors.outline }]} />
       <View style={styles.statItem}>
-        <Text variant="headlineMedium" style={{ color: colors.TEXT.PRIMARY, fontWeight: 'bold' }}>
+        <Text variant="headlineMedium" style={{ color: paperTheme.colors.onSurface, fontWeight: 'bold' }}>
           {followerCount}
         </Text>
-        <Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>
+        <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant }}>
           Followers
         </Text>
       </View>
@@ -83,78 +84,82 @@ const ProfileStats = ({ colors }: { colors: any }) => {
   );
 };
 
-const SettingsSection = ({ theme, toggleTheme, colors }: { theme: string; toggleTheme: () => void; colors: any }) => (
-  <List.Section>
-    <Text variant="titleMedium" style={{ color: colors.TEXT.SECONDARY }}>
-      Settings
-    </Text>
-    
-    <List.Item
-      title={<Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY }}>Dark Mode</Text>}
-      description={<Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>Toggle dark theme</Text>}
-      left={props => (
-        <MaterialCommunityIcons
-          name={theme === 'dark' ? 'weather-night' : 'weather-sunny'}
-          size={24}
-          color={colors.TEXT.PRIMARY}
-          style={props.style}
-        />
-      )}
-      right={() => (
-        <Switch
-          value={theme === 'dark'}
-          onValueChange={toggleTheme}
-          color={colors.TAB_BAR.ACTIVE}
-        />
-      )}
-      style={[styles.listItem, { borderBottomColor: colors.BORDER }]}
-    />
+const SettingsSection = ({ theme, toggleTheme }: { theme: string; toggleTheme: () => void }) => {
+  const paperTheme = usePaperTheme();
+  
+  return (
+    <List.Section>
+      <Text variant="titleMedium" style={{ color: paperTheme.colors.onSurfaceVariant }}>
+        Settings
+      </Text>
+      
+      <List.Item
+        title={<Text variant="bodyLarge" style={{ color: paperTheme.colors.onSurface }}>Dark Mode</Text>}
+        description={<Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant }}>Toggle dark theme</Text>}
+        left={props => (
+          <MaterialCommunityIcons
+            name={theme === 'dark' ? 'weather-night' : 'weather-sunny'}
+            size={24}
+            color={paperTheme.colors.onSurface}
+            style={props.style}
+          />
+        )}
+        right={() => (
+          <Switch
+            value={theme === 'dark'}
+            onValueChange={toggleTheme}
+            color={paperTheme.colors.primary}
+          />
+        )}
+        style={[styles.listItem, { borderBottomColor: paperTheme.colors.outline }]}
+      />
 
-    <List.Item
-      title={<Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY }}>Notifications</Text>}
-      description={<Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>Manage notifications</Text>}
-      left={props => (
-        <MaterialCommunityIcons
-          name="bell-outline"
-          size={24}
-          color={colors.TEXT.PRIMARY}
-          style={props.style}
-        />
-      )}
-      right={props => (
-        <MaterialCommunityIcons
-          name="chevron-right"
-          size={24}
-          color={colors.TEXT.SECONDARY}
-          style={props.style}
-        />
-      )}
-      style={[styles.listItem, { borderBottomColor: colors.BORDER }]}
-    />
+      <List.Item
+        title={<Text variant="bodyLarge" style={{ color: paperTheme.colors.onSurface }}>Notifications</Text>}
+        description={<Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant }}>Manage notifications</Text>}
+        left={props => (
+          <MaterialCommunityIcons
+            name="bell-outline"
+            size={24}
+            color={paperTheme.colors.onSurface}
+            style={props.style}
+          />
+        )}
+        right={props => (
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={24}
+            color={paperTheme.colors.onSurfaceVariant}
+            style={props.style}
+          />
+        )}
+        style={[styles.listItem, { borderBottomColor: paperTheme.colors.outline }]}
+      />
 
-    <List.Item
-      title={<Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY }}>Privacy</Text>}
-      description={<Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>Manage your privacy settings</Text>}
-      left={props => (
-        <MaterialCommunityIcons
-          name="shield-outline"
-          size={24}
-          color={colors.TEXT.PRIMARY}
-          style={props.style}
-        />
-      )}
-      right={props => (
-        <MaterialCommunityIcons
-          name="chevron-right"
-          size={24}
-          color={colors.TEXT.SECONDARY}
-          style={props.style}
-        />
-      )}
-      style={[styles.listItem, { borderBottomColor: colors.BORDER }]}
-    />
-  </List.Section>
-);
+      <List.Item
+        title={<Text variant="bodyLarge" style={{ color: paperTheme.colors.onSurface }}>Privacy</Text>}
+        description={<Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant }}>Manage your privacy settings</Text>}
+        left={props => (
+          <MaterialCommunityIcons
+            name="shield-outline"
+            size={24}
+            color={paperTheme.colors.onSurface}
+            style={props.style}
+          />
+        )}
+        right={props => (
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={24}
+            color={paperTheme.colors.onSurfaceVariant}
+            style={props.style}
+          />
+        )}
+        style={[styles.listItem, { borderBottomColor: paperTheme.colors.outline }]}
+      />
+    </List.Section>
+  );
+};
 
 const AuthModal = ({ visible, onClose, colors }: { visible: boolean; onClose: () => void; colors: any }) => {
   const [email, setEmail] = useState('');
@@ -162,6 +167,7 @@ const AuthModal = ({ visible, onClose, colors }: { visible: boolean; onClose: ()
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const paperTheme = usePaperTheme();
 
   const handleSubmit = async () => {
     if (!email || !password) {
@@ -204,24 +210,24 @@ const AuthModal = ({ visible, onClose, colors }: { visible: boolean; onClose: ()
         onPress={onClose}
       >
         <Pressable 
-          style={[styles.modalContent, { backgroundColor: colors.SURFACE }]}
+          style={[styles.modalContent, { backgroundColor: paperTheme.colors.surface }]}
           onPress={e => e.stopPropagation()}
         >
           <View style={styles.modalHeader}>
-            <Text variant="headlineSmall" style={{ color: colors.TEXT.PRIMARY }}>
+            <Text variant="headlineSmall" style={{ color: paperTheme.colors.onSurface }}>
               {isSignUp ? 'Create Account' : 'Welcome Back'}
             </Text>
             <IconButton
               icon="close"
               size={24}
-              iconColor={colors.TEXT.PRIMARY}
+              iconColor={paperTheme.colors.onSurface}
               onPress={onClose}
             />
           </View>
 
           {error && (
-            <Surface style={[styles.errorContainer, { backgroundColor: colors.SURFACE }]}>
-              <Text variant="bodyMedium" style={{ color: '#ff4444' }}>
+            <Surface style={[styles.errorContainer, { backgroundColor: paperTheme.colors.errorContainer }]}>
+              <Text variant="bodyMedium" style={{ color: paperTheme.colors.error }}>
                 {error}
               </Text>
             </Surface>
@@ -252,7 +258,7 @@ const AuthModal = ({ visible, onClose, colors }: { visible: boolean; onClose: ()
             mode="contained"
             onPress={handleSubmit}
             loading={loading}
-            style={[styles.submitButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
+            style={styles.submitButton}
             contentStyle={{ height: 48 }}
           >
             {isSignUp ? 'Sign Up' : 'Login'}
@@ -271,12 +277,11 @@ const AuthModal = ({ visible, onClose, colors }: { visible: boolean; onClose: ()
   );
 };
 
-const EditProfileModal = ({ visible, onClose, profile, onSave, colors }: { 
+const EditProfileModal = ({ visible, onClose, profile, onSave }: { 
   visible: boolean; 
   onClose: () => void; 
   profile: ProfileData; 
   onSave: (data: ProfileData) => void;
-  colors: any;
 }) => {
   const paperTheme = usePaperTheme();
   const [editedData, setEditedData] = useState<ProfileData>(profile);
@@ -352,16 +357,16 @@ const EditProfileModal = ({ visible, onClose, profile, onSave, colors }: {
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={[styles.modalBackdrop, { backgroundColor: 'rgba(0, 0, 0, 0.5)' }]}>
-        <View style={[styles.modalContent, { backgroundColor: colors.SURFACE }]}>
+      <View style={[styles.modalBackdrop]}>
+        <View style={[styles.modalContent, { backgroundColor: paperTheme.colors.surface }]}>
           <View style={styles.modalHeader}>
-            <Text variant="titleLarge" style={{ color: colors.TEXT.PRIMARY }}>
+            <Text variant="titleLarge" style={{ color: paperTheme.colors.onSurface }}>
               Edit Profile
             </Text>
             <IconButton
               icon="close"
               size={24}
-              iconColor={colors.TEXT.PRIMARY}
+              iconColor={paperTheme.colors.onSurface}
               onPress={onClose}
             />
           </View>
@@ -371,11 +376,11 @@ const EditProfileModal = ({ visible, onClose, profile, onSave, colors }: {
               size={100} 
               source={{ uri: editedData.profile_pic_url || 'https://i.pravatar.cc/300' }} 
             />
-            <View style={[styles.avatarEditButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}>
+            <View style={[styles.avatarEditButton, { backgroundColor: paperTheme.colors.primary }]}>
               {uploading ? (
-                <ActivityIndicator size="small" color={colors.BACKGROUND} />
+                <ActivityIndicator size="small" color={paperTheme.colors.surface} />
               ) : (
-                <MaterialCommunityIcons name="camera" size={20} color={colors.BACKGROUND} />
+                <MaterialCommunityIcons name="camera" size={20} color={paperTheme.colors.surface} />
               )}
             </View>
           </Pressable>
@@ -399,7 +404,7 @@ const EditProfileModal = ({ visible, onClose, profile, onSave, colors }: {
           <Button 
             mode="contained" 
             onPress={handleSave}
-            style={[styles.saveButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
+            style={styles.saveButton}
           >
             Save Changes
           </Button>
@@ -410,19 +415,20 @@ const EditProfileModal = ({ visible, onClose, profile, onSave, colors }: {
 };
 
 export default function Profile() {
-  const { theme, toggleTheme, colors } = useTheme();
-  const router = useRouter();
-  const [isAuthVisible, setIsAuthVisible] = useState(false);
+  const { theme, toggleTheme } = useTheme();
+  const paperTheme = usePaperTheme();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [authModalVisible, setAuthModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
-  const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter();
 
   const fetchProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) {
         setProfile(null);
         setLoading(false);
@@ -439,7 +445,6 @@ export default function Profile() {
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
-      setProfile(null);
     } finally {
       setLoading(false);
     }
@@ -447,10 +452,6 @@ export default function Profile() {
 
   useEffect(() => {
     fetchProfile();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      fetchProfile();
-    });
-    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -468,23 +469,23 @@ export default function Profile() {
         }),
       ]).start();
     }
-  }, [loading, profile]);
+  }, [loading, fadeAnim, slideAnim]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchProfile();
+    setRefreshing(false);
+  }, []);
 
   const handleProfileUpdate = async (updatedData: ProfileData) => {
     try {
-      if (!profile) return;
-
       const { error } = await supabase
         .from('profiles')
-        .update({
-          name: updatedData.name,
-          username: updatedData.username,
-          profile_pic_url: updatedData.profile_pic_url,
-        })
-        .eq('id', profile.id);
+        .update(updatedData)
+        .eq('id', profile?.id);
 
       if (error) throw error;
-      await fetchProfile();
+      setProfile(updatedData);
     } catch (error) {
       console.error('Error updating profile:', error);
     }
@@ -500,174 +501,148 @@ export default function Profile() {
     }
   }
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchProfile().finally(() => setRefreshing(false));
-  }, []);
-
   if (loading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.BACKGROUND, justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={colors.TAB_BAR.ACTIVE} />
+      <View style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
+        <ActivityIndicator size="large" color={paperTheme.colors.primary} />
       </View>
     );
   }
 
   if (!profile) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
-        <View style={styles.emptyStateContainer}>
-          <MaterialCommunityIcons 
-            name="account-circle-outline" 
-            size={80} 
-            color={colors.TEXT.SECONDARY}
-          />
-          <Text 
-            variant="titleLarge" 
-            style={[styles.emptyStateTitle, { color: colors.TEXT.PRIMARY }]}
-          >
+      <SafeAreaView style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
+        <View style={styles.unauthenticatedContainer}>
+          <Text variant="headlineMedium" style={[styles.welcomeText, { color: paperTheme.colors.onBackground }]}>
             Welcome to Saner
           </Text>
-          <Text 
-            variant="bodyLarge" 
-            style={[styles.emptyStateText, { color: colors.TEXT.SECONDARY }]}
-          >
-            Sign in to track your progress and access all features
+          <Text variant="bodyLarge" style={[styles.subtitleText, { color: paperTheme.colors.onSurfaceVariant }]}>
+            Sign in or create an account to get started
           </Text>
-          <Button 
-            mode="contained" 
-            onPress={() => setIsAuthVisible(true)}
-            style={[styles.authButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
-            contentStyle={{ height: 48 }}
-          >
-            Get Started
-          </Button>
+          
+          <View style={styles.authButtonsContainer}>
+            <Button
+              mode="contained"
+              onPress={() => setAuthModalVisible(true)}
+              style={styles.authButton}
+            >
+              Login
+            </Button>
+            
+            <Button
+              mode="outlined"
+              onPress={() => router.push('/(auth)/signup')}
+              style={styles.authButton}
+            >
+              Sign Up
+            </Button>
+          </View>
         </View>
 
         <AuthModal
-          visible={isAuthVisible}
-          onClose={() => setIsAuthVisible(false)}
-          colors={colors}
+          visible={authModalVisible}
+          onClose={() => {
+            setAuthModalVisible(false);
+            fetchProfile();
+          }}
+          colors={paperTheme.colors}
         />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView 
-      style={[styles.container, { backgroundColor: colors.BACKGROUND }]}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          colors={[colors.TAB_BAR.ACTIVE]}
-          tintColor={colors.TAB_BAR.ACTIVE}
-        />
-      }
-    >
-      <Animated.View 
-        style={[
-          styles.header,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          }
-        ]}
-      >
-        <View style={styles.headerTop}>
-          <View style={{ width: 40 }} />
-          <Text variant="titleLarge" style={{ color: colors.TEXT.PRIMARY }}>
-            Profile
-          </Text>
-          <IconButton
-            icon="pencil"
-            size={24}
-            iconColor={colors.TAB_BAR.ACTIVE}
-            onPress={() => router.push('/(main)/profile/edit')}
-            style={styles.editButton}
+    <SafeAreaView style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor={paperTheme.colors.primary}
           />
-    </View>
-
-        <Avatar.Image 
-          size={80} 
-          source={{ uri: profile.profile_pic_url || 'https://i.pravatar.cc/300' }} 
-          style={styles.avatar}
-        />
-        <Text variant="headlineMedium" style={{ color: colors.TEXT.PRIMARY }}>
-          {profile.name || 'Anonymous'}
-        </Text>
-        <Text variant="titleMedium" style={{ color: colors.TEXT.SECONDARY }}>
-          @{profile.username || 'username'}
-        </Text>
-        {profile.email && (
-          <Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY, marginTop: 4 }}>
-            {profile.email}
-          </Text>
-        )}
-      </Animated.View>
-
-      <MotiView
-        from={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'timing', duration: 500, delay: 200 }}
+        }
       >
-        <ProfileStats colors={colors} />
-      </MotiView>
-      
-      <MotiView
-        from={{ opacity: 0, translateY: 20 }}
-        animate={{ opacity: 1, translateY: 0 }}
-        transition={{ type: 'timing', duration: 500, delay: 400 }}
-      >
-        <List.Section>
-          <Text variant="titleMedium" style={{ color: colors.TEXT.SECONDARY, paddingHorizontal: 16 }}>
-            Settings
+        <Animated.View 
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            }
+          ]}
+        >
+          <View style={styles.headerTop}>
+            <View style={{ width: 40 }} />
+            <Text variant="titleLarge" style={{ color: paperTheme.colors.onBackground }}>
+              Profile
+            </Text>
+            <IconButton
+              icon="pencil"
+              size={24}
+              iconColor={paperTheme.colors.primary}
+              onPress={() => setEditModalVisible(true)}
+              style={styles.editButton}
+            />
+          </View>
+
+          <Avatar.Image 
+            size={80} 
+            source={{ uri: profile.profile_pic_url || 'https://i.pravatar.cc/300' }} 
+            style={styles.avatar}
+          />
+          <Text variant="headlineMedium" style={{ color: paperTheme.colors.onBackground }}>
+            {profile.name || 'Anonymous'}
           </Text>
+          <Text variant="titleMedium" style={{ color: paperTheme.colors.onSurfaceVariant }}>
+            @{profile.username || 'username'}
+          </Text>
+          {profile.email && (
+            <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginTop: 4 }}>
+              {profile.email}
+            </Text>
+          )}
+        </Animated.View>
+
+        <MotiView
+          from={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'timing', duration: 500, delay: 200 }}
+        >
+          <ProfileStats />
+        </MotiView>
+        
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 500, delay: 400 }}
+        >
+          <SettingsSection theme={theme} toggleTheme={toggleTheme} />
           
           <List.Item
-            title={<Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY }}>Dark Mode</Text>}
-            description={<Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>Toggle dark theme</Text>}
-            left={props => (
-              <MaterialCommunityIcons
-                name={theme === 'dark' ? 'weather-night' : 'weather-sunny'}
-                size={24}
-                color={colors.TEXT.PRIMARY}
-                style={props.style}
-              />
-            )}
-            right={() => (
-              <Switch
-                value={theme === 'dark'}
-                onValueChange={toggleTheme}
-                color={colors.TAB_BAR.ACTIVE}
-              />
-            )}
-            style={[styles.listItem, { borderBottomColor: colors.BORDER }]}
-          />
-
-          <List.Item
-            title={<Text variant="bodyLarge" style={{ color: colors.TEXT.PRIMARY }}>Sign Out</Text>}
-            description={<Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>Log out of your account</Text>}
+            title={<Text variant="bodyLarge" style={{ color: paperTheme.colors.onBackground }}>Sign Out</Text>}
+            description={<Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant }}>Log out of your account</Text>}
             left={props => (
               <MaterialCommunityIcons
                 name="logout"
                 size={24}
-                color={colors.TEXT.PRIMARY}
+                color={paperTheme.colors.onBackground}
                 style={props.style}
               />
             )}
             onPress={handleSignOut}
-            style={[styles.listItem, { borderBottomColor: colors.BORDER }]}
+            style={[styles.listItem, { borderBottomColor: paperTheme.colors.outline }]}
           />
-        </List.Section>
-      </MotiView>
+        </MotiView>
+      </ScrollView>
 
-      <AuthModal
-        visible={isAuthVisible}
-        onClose={() => setIsAuthVisible(false)}
-        colors={colors}
+      <EditProfileModal
+        visible={editModalVisible}
+        onClose={() => setEditModalVisible(false)}
+        profile={profile}
+        onSave={handleProfileUpdate}
       />
-    </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -688,22 +663,10 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 16,
   },
-  headerTitle: {
-    fontSize: 20,
-    textAlign: 'center',
-  },
   editButton: {
     margin: 0,
   },
   avatar: {
-    marginBottom: 16,
-  },
-  name: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  username: {
-    fontSize: 16,
     marginBottom: 16,
   },
   statsContainer: {
@@ -732,17 +695,13 @@ const styles = StyleSheet.create({
     height: 40,
     marginHorizontal: 16,
   },
-  sectionTitle: {
-    fontSize: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
   listItem: {
     paddingHorizontal: 16,
     borderBottomWidth: 1,
   },
   modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -781,33 +740,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
   input: {
     marginBottom: 16,
-  },
-  saveButton: {
-    marginTop: 8,
-    borderRadius: 12,
-  },
-  loginCard: {
-    width: '100%',
-    borderRadius: 16,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    backgroundColor: 'transparent',
   },
   submitButton: {
     marginTop: 16,
@@ -817,76 +753,36 @@ const styles = StyleSheet.create({
   switchButton: {
     marginTop: 8,
   },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  modalBackdrop: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 8,
-    padding: 16,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  avatarEdit: {
-    alignSelf: 'center',
-    marginBottom: 16,
-    position: 'relative',
-  },
-  avatarEditButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  input: {
-    marginBottom: 16,
-    backgroundColor: 'transparent',
-  },
-  saveButton: {
-    marginTop: 8,
-  },
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyStateTitle: {
-    marginTop: 24,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptyStateText: {
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  authButton: {
-    width: '100%',
-    borderRadius: 12,
-  },
   errorContainer: {
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
     borderLeftWidth: 4,
     borderLeftColor: '#ff4444',
+  },
+  unauthenticatedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  welcomeText: {
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitleText: {
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  authButtonsContainer: {
+    width: '100%',
+    gap: 16,
+  },
+  authButton: {
+    width: '100%',
+    borderRadius: 12,
+  },
+  scrollContent: {
+    padding: 16,
   },
 }); 
