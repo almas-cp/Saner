@@ -1,0 +1,26 @@
+[
+  {
+    "id": "1c3553a8-8682-4e48-9102-d37fb26451a7",
+    "updated_at": "2025-02-11T08:02:42.491000+00:00",
+    "name": "Almas Cp",
+    "username": "almascp",
+    "profile_pic_url": "https://jkwqwteudheerzvhhibv.supabase.co/storage/v1/object/public/profile-pics/1c3553a8-8682-4e48-9102-d37fb26451a7/1739381550586.jpg",
+    "email": "almascp11@gmail.com",
+    "phone_number": "9605256512",
+    "gender": "male",
+    "date_of_birth": null,
+    "is_doctor": false
+  },
+  {
+    "id": "389e6115-6c12-4e6a-b21c-2e6eeb70777f",
+    "updated_at": "2025-02-17T13:41:33.473337+00:00",
+    "name": "Adhish",
+    "username": "adhish",
+    "profile_pic_url": "https://jkwqwteudheerzvhhibv.supabase.co/storage/v1/object/public/profile-pics/389e6115-6c12-4e6a-b21c-2e6eeb70777f/1740655071365.jpg",
+    "email": "adhish@gmail.com",
+    "phone_number": null,
+    "gender": "male",
+    "date_of_birth": null,
+    "is_doctor": false
+  }
+]

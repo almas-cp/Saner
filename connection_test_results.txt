@@ -1,0 +1,46 @@
+Connection Test Results - ['db.py']
+
+Testing connection: postgresql://****:****@jkwqwteudheerzvhhibv.supabase.co:5432/postgres
+FAILED: connection to server at "jkwqwteudheerzvhhibv.supabase.co" (172.64.149.246), port 5432 failed: timeout expired
+connection to server at "jkwqwteudheerzvhhibv.supabase.co" (104.18.38.10), port 5432 failed: timeout expired
+
+
+--------------------------------------------------------------------------------
+
+Testing connection: postgresql://****:****@aws-0-ap-south-1.pooler.supabase.com:5432/postgres
+FAILED: connection to server at "aws-0-ap-south-1.pooler.supabase.com" (3.108.251.216), port 5432 failed: error received from server in SCRAM exchange: Wrong password
+
+
+--------------------------------------------------------------------------------
+
+Testing connection: postgresql://****:****@db.jkwqwteudheerzvhhibv.supabase.co:6543/postgres
+FAILED: could not translate host name "db.jkwqwteudheerzvhhibv.supabase.co" to address: No such host is known. 
+
+
+--------------------------------------------------------------------------------
+
+Testing connection: postgresql://****:****@aws-0-ap-south-1.pooler.supabase.com:5432/postgres
+SUCCESS! Connected to the database.
+Found tables:
+- profiles
+- connections
+- posts_with_authors
+- posts_backup
+- messages
+
+Updated MCP config suggestion:
+{
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://postgres.jkwqwteudheerzvhhibv:almascp2002256512@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
+      ]
+    }
+  }
+}
+
+--------------------------------------------------------------------------------
+

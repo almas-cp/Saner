@@ -1,0 +1,26 @@
+[
+  {
+    "id": "1dfc3cad-6f33-43ab-b273-8dc40630f2f5",
+    "title": "Kanye West",
+    "content": "Content 5",
+    "image_url": "https://jkwqwteudheerzvhhibv.supabase.co/storage/v1/object/public/post-images/1c3553a8-8682-4e48-9102-d37fb26451a7/1739388543284.jpg",
+    "created_at": "2025-02-12T19:29:07.556561+00:00",
+    "user_id": "1c3553a8-8682-4e48-9102-d37fb26451a7",
+    "updated_at": "2025-02-27T11:48:46.834652+00:00",
+    "author_name": "Almas Cp",
+    "author_username": "almascp",
+    "author_profile_pic": "https://jkwqwteudheerzvhhibv.supabase.co/storage/v1/object/public/profile-pics/1c3553a8-8682-4e48-9102-d37fb26451a7/1739381550586.jpg"
+  },
+  {
+    "id": "c5b11964-af1a-4960-adc2-806682560ac3",
+    "title": "Sulaiman Kind",
+    "content": "Content 2",
+    "image_url": "https://jkwqwteudheerzvhhibv.supabase.co/storage/v1/object/public/post-images/1c3553a8-8682-4e48-9102-d37fb26451a7/1739383571252.jpg",
+    "created_at": "2025-02-12T18:06:17.839988+00:00",
+    "user_id": "1c3553a8-8682-4e48-9102-d37fb26451a7",
+    "updated_at": "2025-02-27T11:48:46.834652+00:00",
+    "author_name": "Almas Cp",
+    "author_username": "almascp",
+    "author_profile_pic": "https://jkwqwteudheerzvhhibv.supabase.co/storage/v1/object/public/profile-pics/1c3553a8-8682-4e48-9102-d37fb26451a7/1739381550586.jpg"
+  }
+]
