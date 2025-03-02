@@ -119,6 +119,65 @@ headerTitle: () => (
 )
 ```
 
+## Database Management
+
+### Supabase Database Client Tool
+
+A Python-based CLI tool for interacting with the Supabase database without the complexity of the MCP server.
+
+#### Features
+
+- Connect to the Supabase PostgreSQL database directly
+- Test database connections
+- List all tables in the database
+- View table schemas
+- Count rows in tables
+- Execute SQL queries with parametrized inputs
+- Output results in different formats (JSON, CSV, formatted tables)
+- Save query results to files
+
+#### Usage
+
+```bash
+# Test database connection
+python db.py --test
+
+# List all tables in the database
+python db.py --list-tables
+
+# Show schema for a specific table
+python db.py --schema profiles
+
+# Count rows in a table
+python db.py --count posts
+
+# Execute a simple SQL query
+python db.py "SELECT * FROM profiles LIMIT 5"
+
+# Execute a query with JSON output
+python db.py "SELECT * FROM profiles LIMIT 5" --output json
+
+# Save query results to a file
+python db.py "SELECT * FROM profiles" --output csv --file profiles.csv
+
+# Execute a query from a file
+python db.py --query-file my_query.sql
+
+# Use verbose mode for more detailed output
+python db.py --test --verbose
+```
+
+#### Requirements
+
+- Python 3.7+
+- psycopg2 (PostgreSQL adapter for Python)
+
+Install the required packages with:
+
+```bash
+pip install psycopg2-binary
+```
+
 ## Usage
 
 The app name will display in the top left of all main app screens, providing consistent branding throughout the application.
