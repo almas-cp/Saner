@@ -17,6 +17,7 @@ type Post = {
   author_name: string;
   author_username: string;
   author_profile_pic: string;
+  author_is_doctor: boolean;
 };
 
 export default function Discover() {
@@ -72,7 +73,8 @@ export default function Discover() {
             id,
             name,
             username,
-            profile_pic_url
+            profile_pic_url,
+            is_doctor
           )
         `)
         .order('created_at', { ascending: false });
@@ -99,7 +101,8 @@ export default function Discover() {
         user_id: post.user_id,
         author_name: post.profiles?.name || post.author_name || 'Anonymous',
         author_username: post.profiles?.username || post.author_username || '',
-        author_profile_pic: post.profiles?.profile_pic_url || post.author_profile_pic || ''
+        author_profile_pic: post.profiles?.profile_pic_url || post.author_profile_pic || '',
+        author_is_doctor: post.profiles?.is_doctor || false
       };
     }) || [];
   };
@@ -194,10 +197,25 @@ export default function Discover() {
                     />
                   )}
                   <Card.Title
-                    title={post.title}
-                    subtitle={`by ${post.author_name}`}
-                    titleStyle={[styles.cardTitle, { color: colors.TEXT.PRIMARY, fontWeight: '600' }]}
-                    subtitleStyle={[styles.cardSubtitle, { color: colors.TEXT.SECONDARY }]}
+                    title={
+                      <View style={styles.titleContainer}>
+                        <Text style={[styles.cardTitle, { color: colors.TEXT.PRIMARY, fontWeight: '600' }]}>
+                          {post.title}
+                        </Text>
+                      </View>
+                    }
+                    subtitle={
+                      <View style={styles.subtitleContainer}>
+                        <Text style={[styles.cardSubtitle, { color: colors.TEXT.SECONDARY }]}>
+                          by {post.author_name}
+                        </Text>
+                        {post.author_is_doctor && (
+                          <MaterialCommunityIcons name="check-decagram" size={16} color="#1DA1F2" style={{marginLeft: 4}} />
+                        )}
+                      </View>
+                    }
+                    titleStyle={{marginBottom: 0, paddingBottom: 0}}
+                    subtitleStyle={{marginTop: 0, paddingTop: 0}}
                     left={(props) => 
                       <Avatar.Image 
                         {...props}
@@ -344,5 +362,13 @@ const styles = StyleSheet.create({
     padding: 24,
     marginHorizontal: 24,
     borderRadius: 16,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  subtitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 }); 

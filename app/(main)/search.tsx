@@ -11,6 +11,7 @@ type Profile = {
   name: string | null;
   username: string | null;
   profile_pic_url: string | null;
+  is_doctor: boolean | null;
 };
 
 type Post = {
@@ -24,6 +25,7 @@ type Post = {
   author_name: string | null;
   author_username: string | null;
   author_profile_pic: string | null;
+  author_is_doctor: boolean | null;
 };
 
 export default function SearchScreen() {
@@ -69,7 +71,7 @@ export default function SearchScreen() {
         promises.push(
           supabase
             .from('profiles')
-            .select('id, username, name, profile_pic_url')
+            .select('id, username, name, profile_pic_url, is_doctor')
             .or(`username.ilike.%${searchTerm}%,name.ilike.%${searchTerm}%`)
             .limit(20)
         );
@@ -82,7 +84,7 @@ export default function SearchScreen() {
         promises.push(
           supabase
             .from('posts')
-            .select('*')
+            .select('*, author:profiles(*)')
             .or(`title.ilike.%${searchTerm}%,content.ilike.%${searchTerm}%`)
             .limit(20)
         );
@@ -96,7 +98,13 @@ export default function SearchScreen() {
       if (postsResult.error) throw postsResult.error;
 
       setProfiles(profilesResult.data || []);
-      setPosts(postsResult.data || []);
+      setPosts(postsResult.data.map((post: any) => ({
+        ...post,
+        author_name: post.author.name,
+        author_username: post.author.username,
+        author_profile_pic: post.author.profile_pic_url,
+        author_is_doctor: post.author.is_doctor,
+      })) || []);
     } catch (error) {
       console.error('Search error:', error);
       setProfiles([]);
@@ -258,9 +266,25 @@ export default function SearchScreen() {
                           source={{ uri: profile.profile_pic_url || 'https://i.pravatar.cc/150' }}
                         />
                         <View style={styles.userInfo}>
-                          <Text style={[styles.userName, { color: colors.TEXT.PRIMARY }]}>
-                            {profile.name || 'Anonymous'}
-                          </Text>
+                          <View style={styles.nameContainer}>
+                            <Text style={[styles.userName, { color: colors.TEXT.PRIMARY }]}>
+                              {profile.name || 'Anonymous'}
+                            </Text>
+                            {profile.is_doctor && (
+                              <Chip
+                                icon="medical-bag"
+                                mode="flat"
+                                style={{ 
+                                  backgroundColor: '#E0F2F1',
+                                  height: 24,
+                                  marginLeft: 8
+                                }}
+                                textStyle={{ color: '#00897B', fontSize: 10 }}
+                              >
+                                MD
+                              </Chip>
+                            )}
+                          </View>
                           <Text style={[styles.userUsername, { color: colors.TEXT.SECONDARY }]}>
                             @{profile.username || 'user'}
                           </Text>
@@ -306,9 +330,25 @@ export default function SearchScreen() {
                               source={{ uri: post.author_profile_pic || 'https://i.pravatar.cc/150' }}
                             />
                             <View style={styles.authorInfo}>
-                              <Text style={[styles.authorName, { color: colors.TEXT.PRIMARY }]}>
-                                {post.author_name || 'Anonymous'}
-                              </Text>
+                              <View style={styles.nameContainer}>
+                                <Text style={[styles.authorName, { color: colors.TEXT.PRIMARY }]}>
+                                  {post.author_name || 'Anonymous'}
+                                </Text>
+                                {post.author_is_doctor && (
+                                  <Chip
+                                    icon="medical-bag"
+                                    mode="flat"
+                                    style={{ 
+                                      backgroundColor: '#E0F2F1',
+                                      height: 24,
+                                      marginLeft: 8
+                                    }}
+                                    textStyle={{ color: '#00897B', fontSize: 10 }}
+                                  >
+                                    MD
+                                  </Chip>
+                                )}
+                              </View>
                               <Text style={[styles.authorUsername, { color: colors.TEXT.SECONDARY }]}>
                                 @{post.author_username || 'user'}
                               </Text>
@@ -385,6 +425,10 @@ const styles = StyleSheet.create({
   userInfo: {
     flex: 1,
     marginLeft: 16,
+  },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   userName: {
     fontSize: 16,

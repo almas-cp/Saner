@@ -469,9 +469,14 @@ export default function Profile() {
             source={{ uri: profile.profile_pic_url || 'https://i.pravatar.cc/300' }} 
             style={styles.avatar}
           />
-          <Text variant="headlineMedium" style={{ color: paperTheme.colors.onBackground }}>
-            {profile.name || 'Anonymous'}
-          </Text>
+          <View style={styles.nameContainer}>
+            <Text variant="headlineMedium" style={{ color: paperTheme.colors.onBackground }}>
+              {profile.name || 'Anonymous'}
+            </Text>
+            {profile.is_doctor && (
+              <MaterialCommunityIcons name="check-decagram" size={24} color="#1DA1F2" style={{ marginLeft: 8 }} />
+            )}
+          </View>
           <Text variant="titleMedium" style={{ color: paperTheme.colors.onSurfaceVariant }}>
             @{profile.username || 'username'}
           </Text>
@@ -500,49 +505,6 @@ export default function Profile() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: 500, delay: 400 }}
         >
-          <Animated.View style={[styles.profileInfo, { backgroundColor: paperTheme.colors.surface }]}>
-            <Text variant="headlineMedium" style={{ color: paperTheme.colors.onSurface, fontWeight: 'bold' }}>
-              {profile.name}
-            </Text>
-            <Text variant="titleMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginTop: 4 }}>
-              @{profile.username}
-            </Text>
-            {profile.email && (
-              <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginTop: 4 }}>
-                {profile.email}
-              </Text>
-            )}
-            {formattedDateOfBirth && (
-              <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginTop: 4 }}>
-                Born: {formattedDateOfBirth}
-              </Text>
-            )}
-            {profile.is_doctor && (
-              <Chip
-                icon="medical-bag"
-                mode="flat"
-                style={{ 
-                  marginTop: 8,
-                  backgroundColor: '#E0F2F1',
-                  alignSelf: 'flex-start'
-                }}
-                textStyle={{ color: '#00897B' }}
-              >
-                Healthcare Professional
-              </Chip>
-            )}
-            {profile.gender && (
-              <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginTop: 4 }}>
-                Gender: {profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1)}
-              </Text>
-            )}
-            {profile.phone_number && (
-              <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginTop: 4 }}>
-                Phone: {profile.phone_number}
-              </Text>
-            )}
-          </Animated.View>
-
           <SettingsSection theme={theme} toggleTheme={toggleTheme} />
           
           <List.Item
@@ -712,19 +674,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
   },
-  profileInfo: {
-    padding: 16,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-    marginBottom: 24,
-  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -755,5 +704,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
     borderRadius: 8,
+  },
+  nameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 4,
   },
 });

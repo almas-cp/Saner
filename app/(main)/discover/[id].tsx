@@ -17,6 +17,7 @@ type Post = {
   author_name: string;
   author_username: string;
   author_profile_pic: string;
+  author_is_doctor: boolean;
 };
 
 type ConnectionStatus = 'accepted' | 'pending' | 'rejected' | null;
@@ -56,7 +57,8 @@ export default function ArticleView() {
             id,
             name,
             username,
-            profile_pic_url
+            profile_pic_url,
+            is_doctor
           )
         `)
         .eq('id', id)
@@ -76,7 +78,8 @@ export default function ArticleView() {
         user_id: post.user_id,
         author_name: post.profiles?.name || post.author_name || 'Anonymous',
         author_username: post.profiles?.username || post.author_username || '',
-        author_profile_pic: post.profiles?.profile_pic_url || post.author_profile_pic || ''
+        author_profile_pic: post.profiles?.profile_pic_url || post.author_profile_pic || '',
+        author_is_doctor: post.profiles?.is_doctor || false
       };
       
       console.log('Transformed post:', transformedPost);
@@ -272,12 +275,17 @@ export default function ArticleView() {
             
             <View style={styles.authorInfo}>
               <TouchableOpacity onPress={handleViewProfile}>
-                <Text 
-                  variant="titleMedium" 
-                  style={[styles.authorName, { color: colors.TEXT.PRIMARY }]}
-                >
-                  {post.author_name}
-                </Text>
+                <View style={styles.authorNameContainer}>
+                  <Text 
+                    variant="titleMedium" 
+                    style={[styles.authorName, { color: colors.TEXT.PRIMARY }]}
+                  >
+                    {post.author_name}
+                  </Text>
+                  {post.author_is_doctor && (
+                    <MaterialCommunityIcons name="check-decagram" size={18} color="#1DA1F2" style={{marginLeft: 4}} />
+                  )}
+                </View>
               </TouchableOpacity>
               
               {post.author_username && (
@@ -356,6 +364,10 @@ const styles = StyleSheet.create({
   },
   authorInfo: {
     flex: 1,
+  },
+  authorNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   authorName: {
     fontWeight: 'bold',
