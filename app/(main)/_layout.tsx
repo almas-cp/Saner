@@ -30,7 +30,8 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
 
   // Function to check if user is authenticated
   const checkAuthAndNavigate = async (routeName: string) => {
-    if (routeName === 'chat') {
+    // Only allow discover page for unauthenticated users
+    if (routeName !== 'discover') {
       // Check if user is authenticated
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -98,7 +99,7 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
             });
 
             if (!isFocused && !event.defaultPrevented) {
-              // Check authentication for chat tab
+              // Check authentication for protected pages
               const canNavigate = await checkAuthAndNavigate(route.name);
               if (canNavigate) {
                 navigation.navigate(route.name);
@@ -268,6 +269,15 @@ export default function MainLayout() {
   // Check if we're on the main chat page
   const isOnChatPage = pathname === '/chat';
 
+  // Check if we're on a protected page (any page except discover)
+  const isOnProtectedPage = 
+    pathname === '/breath' || 
+    pathname === '/write' || 
+    pathname === '/chat' || 
+    pathname === '/profile' ||
+    isOnChatDetail || 
+    pathname.includes('/profile/');
+
   const fetchProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -298,9 +308,9 @@ export default function MainLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Redirect unauthorized users from chat page
+  // Redirect unauthorized users from protected pages
   useEffect(() => {
-    if (isOnChatPage || isOnChatDetail) {
+    if (isOnProtectedPage) {
       const checkAuth = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
@@ -310,7 +320,7 @@ export default function MainLayout() {
       
       checkAuth();
     }
-  }, [pathname, router]);
+  }, [pathname, router, isOnProtectedPage]);
 
   const toggleMenu = () => {
     const toValue = isMenuOpen ? Dimensions.get('window').width : 0;
