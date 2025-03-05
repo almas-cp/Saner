@@ -12,6 +12,10 @@ type ProfileData = {
   name: string | null;
   username: string | null;
   profile_pic_url: string | null;
+  phone_number: string | null;
+  gender: string | null;
+  date_of_birth: string | null;
+  is_doctor: boolean | null;
 };
 
 type Post = {
@@ -161,6 +165,10 @@ export default function UserProfile() {
     );
   }
 
+  const formattedDateOfBirth = profile.date_of_birth 
+    ? new Date(profile.date_of_birth).toLocaleDateString() 
+    : null;
+
   const renderConnectionStatus = () => {
     if (!currentUserId || currentUserId === profile.id) return null;
     
@@ -254,77 +262,135 @@ export default function UserProfile() {
         />
       }
     >
-      <MotiView
-        from={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'timing', duration: 500 }}
-        style={styles.header}
-      >
-        <Avatar.Image
-          size={80}
-          source={{ uri: profile.profile_pic_url || 'https://i.pravatar.cc/300' }}
-          style={styles.avatar}
-        />
-        <Text variant="headlineMedium" style={{ color: colors.TEXT.PRIMARY }}>
-          {profile.name || 'Anonymous'}
-        </Text>
-        <Text variant="titleMedium" style={{ color: colors.TEXT.SECONDARY, marginBottom: 16 }}>
-          @{profile.username || 'username'}
-        </Text>
+      <View style={styles.header}>
+        <View style={styles.profileInfo}>
+          <Avatar.Image
+            size={100}
+            source={{ uri: profile.profile_pic_url || 'https://i.pravatar.cc/300' }}
+          />
+          <View style={styles.nameSection}>
+            <Text variant="headlineSmall" style={{ color: colors.TEXT.PRIMARY, fontWeight: 'bold' }}>
+              {profile.name}
+            </Text>
+            <Text variant="titleMedium" style={{ color: colors.TEXT.SECONDARY }}>
+              @{profile.username}
+            </Text>
+            {profile.is_doctor && (
+              <Chip
+                icon="medical-bag"
+                mode="flat"
+                style={{ 
+                  marginTop: 8,
+                  backgroundColor: '#E0F2F1',
+                }}
+                textStyle={{ color: '#00897B' }}
+              >
+                Healthcare Professional
+              </Chip>
+            )}
+          </View>
+        </View>
 
         {renderConnectionStatus()}
-      </MotiView>
+      </View>
 
-      <Divider style={{ marginVertical: 8 }} />
+      <Divider style={{ marginVertical: 16 }} />
 
-      <View style={styles.postsSection}>
-        <Text variant="titleLarge" style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
-          Posts
+      {/* Profile details section */}
+      <View style={styles.detailsSection}>
+        <Text variant="titleMedium" style={{ color: colors.TEXT.PRIMARY, marginBottom: 12 }}>
+          Profile Information
         </Text>
-        {posts.length === 0 ? (
-          <View style={styles.emptyPosts}>
-            <MaterialCommunityIcons 
-              name="post-outline" 
-              size={48} 
-              color={colors.TEXT.SECONDARY} 
-              style={{ opacity: 0.6, marginBottom: 8 }}
-            />
-            <Text style={[styles.emptyText, { color: colors.TEXT.SECONDARY }]}>
-              No posts yet
+
+        {profile.gender && (
+          <View style={styles.detailItem}>
+            <MaterialCommunityIcons name="gender-male-female" size={24} color={colors.TEXT.SECONDARY} />
+            <Text style={{ color: colors.TEXT.PRIMARY, marginLeft: 12 }}>
+              {profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1)}
             </Text>
           </View>
-        ) : (
-          posts.map((post) => (
+        )}
+
+        {formattedDateOfBirth && (
+          <View style={styles.detailItem}>
+            <MaterialCommunityIcons name="calendar" size={24} color={colors.TEXT.SECONDARY} />
+            <Text style={{ color: colors.TEXT.PRIMARY, marginLeft: 12 }}>
+              {formattedDateOfBirth}
+            </Text>
+          </View>
+        )}
+
+        {profile.phone_number && (
+          <View style={styles.detailItem}>
+            <MaterialCommunityIcons name="phone" size={24} color={colors.TEXT.SECONDARY} />
+            <Text style={{ color: colors.TEXT.PRIMARY, marginLeft: 12 }}>
+              {profile.phone_number}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      <Divider style={{ marginVertical: 16 }} />
+
+      {/* Posts section */}
+      <Text variant="titleMedium" style={{ color: colors.TEXT.PRIMARY, marginHorizontal: 16, marginBottom: 12 }}>
+        Posts
+      </Text>
+
+      {posts.length === 0 ? (
+        <View style={styles.emptyState}>
+          <MaterialCommunityIcons name="post-outline" size={48} color={colors.TEXT.SECONDARY} />
+          <Text style={{ color: colors.TEXT.SECONDARY, marginTop: 8, textAlign: 'center' }}>
+            No posts yet
+          </Text>
+        </View>
+      ) : (
+        <View style={styles.postsContainer}>
+          {posts.map(post => (
             <Pressable
               key={post.id}
               style={({ pressed }) => [
+                styles.postItem,
                 { 
-                  opacity: pressed ? 0.9 : 1,
-                  transform: [{ scale: pressed ? 0.98 : 1 }]
-                }
+                  backgroundColor: colors.CARD,
+                  opacity: pressed ? 0.8 : 1,
+                },
               ]}
               onPress={() => router.push(`/(main)/discover/${post.id}`)}
             >
-              <MotiView
-                from={{ opacity: 0, translateY: 20 }}
-                animate={{ opacity: 1, translateY: 0 }}
-                transition={{ type: 'timing', duration: 500 }}
-                style={[styles.postCard, { backgroundColor: colors.SURFACE }]}
+              <Text 
+                numberOfLines={1} 
+                style={{ 
+                  color: colors.TEXT.PRIMARY, 
+                  fontWeight: '600',
+                  fontSize: 16,
+                }}
               >
-                <Text variant="titleMedium" style={{ color: colors.TEXT.PRIMARY }}>
-                  {post.title}
-                </Text>
-                <Text variant="bodyMedium" style={{ color: colors.TEXT.SECONDARY }}>
-                  {post.content.length > 150 ? `${post.content.substring(0, 150)}...` : post.content}
-                </Text>
-                <Text variant="bodySmall" style={{ color: colors.TEXT.SECONDARY, marginTop: 8 }}>
-                  {new Date(post.created_at).toLocaleDateString()}
-                </Text>
-              </MotiView>
+                {post.title}
+              </Text>
+              <Text 
+                numberOfLines={2} 
+                style={{ 
+                  color: colors.TEXT.SECONDARY,
+                  fontSize: 14,
+                  marginTop: 4,
+                }}
+              >
+                {post.content}
+              </Text>
+              <Text 
+                style={{ 
+                  color: colors.TEXT.TERTIARY,
+                  fontSize: 12,
+                  marginTop: 8,
+                }}
+              >
+                {new Date(post.created_at).toLocaleDateString()}
+              </Text>
             </Pressable>
-          ))
-        )}
-      </View>
+          ))}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -334,47 +400,40 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    alignItems: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-  },
-  avatar: {
-    marginBottom: 16,
-  },
-  connectButton: {
-    marginTop: 8,
-    borderRadius: 20,
-    paddingHorizontal: 24,
-  },
-  postsSection: {
     padding: 16,
   },
-  sectionTitle: {
-    marginBottom: 16,
-  },
-  postCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-  },
-  emptyText: {
-    textAlign: 'center',
-  },
-  emptyPosts: {
+  profileInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
+  },
+  nameSection: {
+    marginLeft: 16,
+    flex: 1,
   },
   connectionInfo: {
-    alignItems: 'center',
-    marginTop: 8,
+    marginTop: 16,
+    alignItems: 'flex-start',
   },
-}); 
+  detailsSection: {
+    paddingHorizontal: 16,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  postsContainer: {
+    padding: 16,
+    gap: 12,
+  },
+  postItem: {
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+});

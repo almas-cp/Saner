@@ -1,5 +1,5 @@
 import { View, StyleSheet, ScrollView, SafeAreaView, Animated, Platform, Pressable, Modal, RefreshControl } from 'react-native';
-import { Switch, List, Avatar, Text, IconButton, TextInput, Button, useTheme as usePaperTheme, Card, ActivityIndicator, Surface } from 'react-native-paper';
+import { Switch, List, Avatar, Text, IconButton, TextInput, Button, useTheme as usePaperTheme, Card, ActivityIndicator, Surface, Chip, RadioButton, HelperText } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import { MotiView } from 'moti';
+import { format } from 'date-fns';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 type ProfileData = {
   id: string;
@@ -15,6 +17,10 @@ type ProfileData = {
   username: string | null;
   profile_pic_url: string | null;
   email: string | null;
+  phone_number: string | null;
+  gender: string | null;
+  date_of_birth: string | null;
+  is_doctor: boolean | null;
 };
 
 const ProfileStats = () => {
@@ -201,214 +207,73 @@ const AuthModal = ({ visible, onClose, colors }: { visible: boolean; onClose: ()
   return (
     <Modal
       visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Pressable 
-        style={styles.modalOverlay} 
-        onPress={onClose}
-      >
-        <Pressable 
-          style={[styles.modalContent, { backgroundColor: paperTheme.colors.surface }]}
-          onPress={e => e.stopPropagation()}
-        >
-          <View style={styles.modalHeader}>
-            <Text variant="headlineSmall" style={{ color: paperTheme.colors.onSurface }}>
-              {isSignUp ? 'Create Account' : 'Welcome Back'}
-            </Text>
-            <IconButton
-              icon="close"
-              size={24}
-              iconColor={paperTheme.colors.onSurface}
-              onPress={onClose}
-            />
-          </View>
-
-          {error && (
-            <Surface style={[styles.errorContainer, { backgroundColor: paperTheme.colors.errorContainer }]}>
-              <Text variant="bodyMedium" style={{ color: paperTheme.colors.error }}>
-                {error}
-              </Text>
-            </Surface>
-          )}
-
-          <TextInput
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-            mode="outlined"
-            style={styles.input}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            left={<TextInput.Icon icon="email" />}
-          />
-
-          <TextInput
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            mode="outlined"
-            style={styles.input}
-            secureTextEntry
-            left={<TextInput.Icon icon="lock" />}
-          />
-
-          <Button
-            mode="contained"
-            onPress={handleSubmit}
-            loading={loading}
-            style={styles.submitButton}
-            contentStyle={{ height: 48 }}
-          >
-            {isSignUp ? 'Sign Up' : 'Login'}
-          </Button>
-
-          <Button
-            mode="text"
-            onPress={() => setIsSignUp(!isSignUp)}
-            style={styles.switchButton}
-          >
-            {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
-          </Button>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-};
-
-const EditProfileModal = ({ visible, onClose, profile, onSave }: { 
-  visible: boolean; 
-  onClose: () => void; 
-  profile: ProfileData; 
-  onSave: (data: ProfileData) => void;
-}) => {
-  const paperTheme = usePaperTheme();
-  const [editedData, setEditedData] = useState<ProfileData>(profile);
-  const [uploading, setUploading] = useState(false);
-
-  useEffect(() => {
-    if (visible) {
-      setEditedData(profile);
-    }
-  }, [visible, profile]);
-
-  const pickImage = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (status !== 'granted') {
-        alert('Sorry, we need camera roll permissions to make this work!');
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.5,
-        base64: true,
-      });
-
-      if (!result.canceled && result.assets[0].base64) {
-        setUploading(true);
-        const base64FileData = result.assets[0].base64;
-        const filePath = `${profile.id}/${new Date().getTime()}.jpg`;
-
-        try {
-          const { error: uploadError } = await supabase.storage
-            .from('avatars')
-            .upload(filePath, decode(base64FileData), {
-              contentType: 'image/jpeg',
-              upsert: true,
-            });
-
-          if (uploadError) throw uploadError;
-
-          const { data: { publicUrl } } = supabase.storage
-            .from('avatars')
-            .getPublicUrl(filePath);
-
-          setEditedData(prev => ({
-            ...prev,
-            profile_pic_url: publicUrl,
-          }));
-        } catch (error) {
-          alert('Error uploading image');
-          console.error('Error uploading image:', error);
-        } finally {
-          setUploading(false);
-        }
-      }
-    } catch (error) {
-      alert('Error picking image');
-      console.error('Error picking image:', error);
-    }
-  };
-
-  const handleSave = async () => {
-    await onSave(editedData);
-    onClose();
-  };
-
-  return (
-    <Modal
-      visible={visible}
       transparent={true}
+      animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={[styles.modalBackdrop]}>
-        <View style={[styles.modalContent, { backgroundColor: paperTheme.colors.surface }]}>
-          <View style={styles.modalHeader}>
-            <Text variant="titleLarge" style={{ color: paperTheme.colors.onSurface }}>
-              Edit Profile
-            </Text>
-            <IconButton
-              icon="close"
-              size={24}
-              iconColor={paperTheme.colors.onSurface}
-              onPress={onClose}
-            />
-          </View>
-
-          <Pressable onPress={pickImage} style={styles.avatarEdit}>
-            <Avatar.Image 
-              size={100} 
-              source={{ uri: editedData.profile_pic_url || 'https://i.pravatar.cc/300' }} 
-            />
-            <View style={[styles.avatarEditButton, { backgroundColor: paperTheme.colors.primary }]}>
-              {uploading ? (
-                <ActivityIndicator size="small" color={paperTheme.colors.surface} />
-              ) : (
-                <MaterialCommunityIcons name="camera" size={20} color={paperTheme.colors.surface} />
-              )}
+      <View style={styles.modalBackdrop}>
+        <ScrollView contentContainerStyle={{flexGrow: 1, justifyContent: 'center'}}>
+          <View style={[styles.modalContent, { backgroundColor: paperTheme.colors.surface }]}>
+            <View style={styles.modalHeader}>
+              <Text variant="headlineSmall" style={{ color: paperTheme.colors.onSurface }}>
+                {isSignUp ? 'Create Account' : 'Welcome Back'}
+              </Text>
+              <IconButton
+                icon="close"
+                size={24}
+                iconColor={paperTheme.colors.onSurface}
+                onPress={onClose}
+              />
             </View>
-          </Pressable>
 
-          <TextInput
-            label="Name"
-            value={editedData.name || ''}
-            onChangeText={(text) => setEditedData(prev => ({ ...prev, name: text }))}
-            mode="outlined"
-            style={styles.input}
-          />
+            {error && (
+              <Surface style={[styles.errorContainer, { backgroundColor: paperTheme.colors.errorContainer }]}>
+                <Text variant="bodyMedium" style={{ color: paperTheme.colors.error }}>
+                  {error}
+                </Text>
+              </Surface>
+            )}
 
-          <TextInput
-            label="Username"
-            value={editedData.username || ''}
-            onChangeText={(text) => setEditedData(prev => ({ ...prev, username: text }))}
-            mode="outlined"
-            style={styles.input}
-          />
+            <TextInput
+              label="Email"
+              value={email}
+              onChangeText={setEmail}
+              mode="outlined"
+              style={styles.input}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              left={<TextInput.Icon icon="email" />}
+            />
 
-          <Button 
-            mode="contained" 
-            onPress={handleSave}
-            style={styles.saveButton}
-          >
-            Save Changes
-          </Button>
-        </View>
+            <TextInput
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              mode="outlined"
+              style={styles.input}
+              secureTextEntry
+              left={<TextInput.Icon icon="lock" />}
+            />
+
+            <Button
+              mode="contained"
+              onPress={handleSubmit}
+              loading={loading}
+              style={styles.submitButton}
+              contentStyle={{ height: 48 }}
+            >
+              {isSignUp ? 'Sign Up' : 'Login'}
+            </Button>
+
+            <Button
+              mode="text"
+              onPress={() => setIsSignUp(!isSignUp)}
+              style={styles.switchButton}
+            >
+              {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
+            </Button>
+          </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -419,7 +284,6 @@ export default function Profile() {
   const paperTheme = usePaperTheme();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editModalVisible, setEditModalVisible] = useState(false);
   const [authModalVisible, setAuthModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -479,12 +343,19 @@ export default function Profile() {
 
   const handleProfileUpdate = async (updatedData: ProfileData) => {
     try {
+      console.log("Updating profile with data:", updatedData);
+      if (!profile || !profile.id) {
+        console.error("No profile or profile ID to update");
+        return;
+      }
+      
       const { error } = await supabase
         .from('profiles')
         .update(updatedData)
-        .eq('id', profile?.id);
+        .eq('id', profile.id);
 
       if (error) throw error;
+      console.log("Profile updated successfully");
       setProfile(updatedData);
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -551,6 +422,10 @@ export default function Profile() {
     );
   }
 
+  const formattedDateOfBirth = profile.date_of_birth 
+    ? new Date(profile.date_of_birth).toLocaleDateString() 
+    : null;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: paperTheme.colors.background }]}>
       <ScrollView
@@ -581,7 +456,10 @@ export default function Profile() {
               icon="pencil"
               size={24}
               iconColor={paperTheme.colors.primary}
-              onPress={() => setEditModalVisible(true)}
+              onPress={() => {
+                console.log("Edit button pressed - navigating to edit page");
+                router.push('/(main)/profile/edit');
+              }}
               style={styles.editButton}
             />
           </View>
@@ -602,6 +480,11 @@ export default function Profile() {
               {profile.email}
             </Text>
           )}
+          {formattedDateOfBirth && (
+            <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginTop: 4 }}>
+              Born: {formattedDateOfBirth}
+            </Text>
+          )}
         </Animated.View>
 
         <MotiView
@@ -617,6 +500,49 @@ export default function Profile() {
           animate={{ opacity: 1, translateY: 0 }}
           transition={{ type: 'timing', duration: 500, delay: 400 }}
         >
+          <Animated.View style={[styles.profileInfo, { backgroundColor: paperTheme.colors.surface }]}>
+            <Text variant="headlineMedium" style={{ color: paperTheme.colors.onSurface, fontWeight: 'bold' }}>
+              {profile.name}
+            </Text>
+            <Text variant="titleMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginTop: 4 }}>
+              @{profile.username}
+            </Text>
+            {profile.email && (
+              <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginTop: 4 }}>
+                {profile.email}
+              </Text>
+            )}
+            {formattedDateOfBirth && (
+              <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginTop: 4 }}>
+                Born: {formattedDateOfBirth}
+              </Text>
+            )}
+            {profile.is_doctor && (
+              <Chip
+                icon="medical-bag"
+                mode="flat"
+                style={{ 
+                  marginTop: 8,
+                  backgroundColor: '#E0F2F1',
+                  alignSelf: 'flex-start'
+                }}
+                textStyle={{ color: '#00897B' }}
+              >
+                Healthcare Professional
+              </Chip>
+            )}
+            {profile.gender && (
+              <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginTop: 4 }}>
+                Gender: {profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1)}
+              </Text>
+            )}
+            {profile.phone_number && (
+              <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant, marginTop: 4 }}>
+                Phone: {profile.phone_number}
+              </Text>
+            )}
+          </Animated.View>
+
           <SettingsSection theme={theme} toggleTheme={toggleTheme} />
           
           <List.Item
@@ -636,11 +562,13 @@ export default function Profile() {
         </MotiView>
       </ScrollView>
 
-      <EditProfileModal
-        visible={editModalVisible}
-        onClose={() => setEditModalVisible(false)}
-        profile={profile}
-        onSave={handleProfileUpdate}
+      <AuthModal
+        visible={authModalVisible}
+        onClose={() => {
+          setAuthModalVisible(false);
+          fetchProfile();
+        }}
+        colors={paperTheme.colors}
       />
     </SafeAreaView>
   );
@@ -699,7 +627,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: 1,
   },
-  modalOverlay: {
+  modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
@@ -708,8 +636,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
-    maxWidth: 400,
-    borderRadius: 24,
+    borderRadius: 12,
     padding: 20,
     shadowColor: '#000',
     shadowOffset: {
@@ -785,4 +712,48 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
   },
-}); 
+  profileInfo: {
+    padding: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  radioContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  dateButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  saveButton: {
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 8,
+  },
+});
