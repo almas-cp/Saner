@@ -18,6 +18,9 @@ import { supabase } from '../../../src/lib/supabase';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
 
+// Define the coin reward amount as a constant
+const BREATHING_EXERCISE_COIN_REWARD = 10;
+
 // Define the types for phase timing and phases
 type PhaseTiming = {
   inhale: number; 
@@ -56,6 +59,9 @@ export default function Exercise() {
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [showCoinReward, setShowCoinReward] = useState(false);
+  const [rewardAmount, setRewardAmount] = useState(0);
+  const coinAnimatedValue = useRef(new Animated.Value(0)).current;
   
   // Animation values
   const circleScale = useRef(new Animated.Value(1)).current;
@@ -262,12 +268,24 @@ export default function Exercise() {
       saveSession()
         .then(() => {
           console.log('Session saved successfully');
+          
+          // Give the database a moment to complete the transaction
+          setTimeout(() => {
+            // Use 'force-refresh' to ensure the app knows this is a critical balance update
+            router.replace({
+              pathname: '/(main)',
+              params: { 
+                refresh_coins: 'true', 
+                timestamp: new Date().getTime(),
+                force_refresh: 'true' 
+              }
+            });
+          }, 2500); // Longer delay to ensure database operations complete
         })
         .catch((error) => {
           console.error('Error saving session:', error);
-        })
-        .finally(() => {
-          // Always navigate back after a short delay
+          
+          // Still navigate back even if there's an error
           setTimeout(() => {
             router.replace('/(main)/breath');
           }, 1500);
@@ -278,7 +296,7 @@ export default function Exercise() {
     }
   };
   
-  // Save session data to the database
+  // Save session data to the database and reward coins
   const saveSession = async () => {
     if (!isAuthenticated) {
       setSnackbarMessage('Sign in to save your breathing sessions');
@@ -301,6 +319,7 @@ export default function Exercise() {
         return Promise.resolve();
       }
       
+      // Save the session data
       const { error } = await supabase.from('breath_sessions').insert({
         user_id: user.id,
         exercise_name: name || 'Custom Exercise',
@@ -315,17 +334,94 @@ export default function Exercise() {
         setSnackbarMessage('Failed to save session');
         setSnackbarVisible(true);
         return Promise.reject(error);
-      } else {
-        setSnackbarMessage('Session saved successfully!');
-        setSnackbarVisible(true);
-        return Promise.resolve();
       }
+      
+      // Award 10 coins to the user for completing the exercise
+      const COINS_REWARD = BREATHING_EXERCISE_COIN_REWARD;
+      setRewardAmount(COINS_REWARD);
+      
+      // First check if the user already has a coins record
+      const { data: coinData, error: coinFetchError } = await supabase
+        .from('user_coins')
+        .select('coins')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (coinFetchError && coinFetchError.code !== 'PGRST116') {
+        // Error other than "not found"
+        console.error('Error fetching coins:', coinFetchError);
+      }
+      
+      // If user has no coins record yet, create one with the reward amount
+      if (!coinData) {
+        const { error: insertError } = await supabase
+          .from('user_coins')
+          .insert({
+            user_id: user.id,
+            coins: COINS_REWARD
+          });
+        
+        if (insertError) {
+          console.error('Error creating coins record:', insertError);
+        } else {
+          setSnackbarMessage(`Session saved successfully!`);
+          setSnackbarVisible(true);
+          showCoinRewardAnimation(COINS_REWARD);
+        }
+      } else {
+        // User already has a coins record, update it
+        const { error: updateError } = await supabase
+          .from('user_coins')
+          .update({
+            coins: coinData.coins + COINS_REWARD,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+        
+        if (updateError) {
+          console.error('Error updating coins:', updateError);
+          setSnackbarMessage('Session saved, but failed to award coins');
+          setSnackbarVisible(true);
+        } else {
+          setSnackbarMessage(`Session saved successfully!`);
+          setSnackbarVisible(true);
+          showCoinRewardAnimation(COINS_REWARD);
+        }
+      }
+      
+      return Promise.resolve();
     } catch (error) {
       console.error('Error saving session:', error);
       setSnackbarMessage('An error occurred');
       setSnackbarVisible(true);
       return Promise.reject(error);
     }
+  };
+  
+  // Show a coin reward animation
+  const showCoinRewardAnimation = (amount: number) => {
+    setShowCoinReward(true);
+    
+    // Start the animation sequence
+    Animated.sequence([
+      // First scale up
+      Animated.timing(coinAnimatedValue, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      // Hold for a bit
+      Animated.delay(1500),
+      // Then scale down
+      Animated.timing(coinAnimatedValue, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      setShowCoinReward(false);
+      coinAnimatedValue.setValue(0);
+    });
   };
   
   // Start or pause the exercise
@@ -441,6 +537,15 @@ export default function Exercise() {
           <Text style={styles.title}>
             {name || 'Breathing Exercise'}
           </Text>
+          
+          {/* Coin reward indicator */}
+          <View style={styles.coinIndicator}>
+            <Text style={styles.coinIndicatorText}>Complete to earn:</Text>
+            <View style={styles.coinAmount}>
+              <Text style={styles.coinEmoji}>💰</Text>
+              <Text style={styles.coinValue}>{BREATHING_EXERCISE_COIN_REWARD}</Text>
+            </View>
+          </View>
         </View>
       </LinearGradient>
       
@@ -557,6 +662,34 @@ export default function Exercise() {
           </Button>
         </View>
       </ScrollView>
+      
+      {/* Coin reward overlay */}
+      {showCoinReward && (
+        <Animated.View 
+          style={[
+            styles.coinRewardContainer,
+            {
+              transform: [
+                { scale: coinAnimatedValue },
+                { translateY: coinAnimatedValue.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [100, 0],
+                })}
+              ],
+              opacity: coinAnimatedValue,
+            }
+          ]}
+        >
+          <LinearGradient
+            colors={['rgba(255, 215, 0, 0.9)', 'rgba(218, 165, 32, 0.9)']}
+            style={styles.coinRewardGradient}
+          >
+            <Text style={styles.coinRewardText}>+{rewardAmount}</Text>
+            <Text style={styles.coinRewardEmoji}>💰</Text>
+            <Text style={styles.coinRewardLabel}>Coins Earned!</Text>
+          </LinearGradient>
+        </Animated.View>
+      )}
       
       <Snackbar
         visible={snackbarVisible}
@@ -675,5 +808,72 @@ const styles = StyleSheet.create({
     width: '90%',
     marginBottom: 20,
     paddingVertical: 8,
+  },
+  coinRewardContainer: {
+    position: 'absolute',
+    top: '30%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  coinRewardGradient: {
+    padding: 20,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.34,
+    shadowRadius: 6.27,
+    elevation: 10,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  coinRewardText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 10,
+  },
+  coinRewardEmoji: {
+    fontSize: 40,
+    marginBottom: 10,
+  },
+  coinRewardLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  coinIndicator: {
+    marginTop: 8,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  coinIndicatorText: {
+    color: 'white',
+    fontSize: 12,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  coinAmount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  coinEmoji: {
+    fontSize: 16,
+    marginRight: 4,
+  },
+  coinValue: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

@@ -8,7 +8,7 @@ import { View, Animated, Pressable, StyleSheet, Dimensions, Switch, Platform, Sc
 import { Avatar, Text, IconButton, Button, Divider, RadioButton, Menu } from 'react-native-paper';
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../src/lib/supabase';
-import { useRouter, usePathname } from 'expo-router';
+import { useRouter, usePathname, useLocalSearchParams } from 'expo-router';
 import * as Font from 'expo-font';
 import { useFonts } from 'expo-font';
 import { BlurView } from 'expo-blur';
@@ -249,6 +249,7 @@ export default function MainLayout() {
   const slideAnim = useRef(new Animated.Value(Dimensions.get('window').width)).current;
   const router = useRouter();
   const pathname = usePathname();
+  const params = useLocalSearchParams();
   const [paletteMenuVisible, setPaletteMenuVisible] = useState(false);
   const [coinBalance, setCoinBalance] = useState(0);
   const [loadingCoins, setLoadingCoins] = useState(true);
@@ -280,6 +281,43 @@ export default function MainLayout() {
     isOnChatDetail || 
     pathname.includes('/profile/');
 
+  // Listen for route changes that include refresh_coins param
+  useEffect(() => {
+    // Check if params include refresh_coins and especially the force_refresh flag
+    if (params.refresh_coins === 'true') {
+      console.log('Refreshing coin balance due to navigation parameter');
+      
+      // Directly fetch user data for immediate refresh
+      const refreshUserData = async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            console.log('User found, refreshing data forcefully');
+            
+            // First fetch the latest coin data directly
+            const { data: coinData, error: coinError } = await supabase
+              .from('user_coins')
+              .select('coins')
+              .eq('user_id', user.id)
+              .single();
+              
+            if (!coinError && coinData) {
+              console.log('New coin balance retrieved:', coinData.coins);
+              setCoinBalance(coinData.coins);
+            }
+            
+            // Then refresh the full profile
+            fetchProfile();
+          }
+        } catch (error) {
+          console.error('Error refreshing user data:', error);
+        }
+      };
+      
+      refreshUserData();
+    }
+  }, [params.refresh_coins, params.timestamp, params.force_refresh]);
+
   const fetchProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -310,6 +348,8 @@ export default function MainLayout() {
       setLoadingCoins(true);
       if (!userId) return;
 
+      console.log('Fetching coin balance for user:', userId);
+      
       // Get coin balance
       const { data: coinData, error: coinError } = await supabase
         .from('user_coins')
@@ -442,7 +482,11 @@ export default function MainLayout() {
             transform: [{ scale: pressed ? 0.95 : 1 }],
             minWidth: 70,
           })}
-          onPress={() => router.push('/(main)/profile')}
+          onPress={() => {
+            // Force refresh coin balance when pressing on the coin display
+            fetchCoinBalance(profile.id);
+            router.push('/(main)/profile');
+          }}
         >
           <Text style={{ fontSize: 16 }}>💰</Text>
           {loadingCoins ? (

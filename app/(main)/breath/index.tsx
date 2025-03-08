@@ -9,7 +9,7 @@ import {
   Platform
 } from 'react-native';
 import { Text, Card, Title, Paragraph, Button, ActivityIndicator, IconButton, Chip } from 'react-native-paper';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../../../src/contexts/theme';
 import { getCommonStyles } from '../../../src/styles/commonStyles';
 import { StatusBar } from 'expo-status-bar';
@@ -17,6 +17,9 @@ import { supabase } from '../../../src/lib/supabase';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MotiView } from 'moti';
+
+// Define the coin reward amount as a constant
+const BREATHING_EXERCISE_COIN_REWARD = 10;
 
 // Define breathing exercise types
 type BreathingExercise = {
@@ -88,6 +91,7 @@ export default function BreathIndex() {
   const router = useRouter();
   const { theme, colors, palette } = useTheme();
   const commonStyles = getCommonStyles(theme, palette);
+  const params = useLocalSearchParams();
   
   const [refreshing, setRefreshing] = useState(false);
   const [pastSessions, setPastSessions] = useState<any[]>([]);
@@ -99,6 +103,13 @@ export default function BreathIndex() {
     checkAuth();
     fetchPastSessions();
   }, []);
+  
+  // Check for refresh_coins param which indicates we just completed an exercise
+  useEffect(() => {
+    if (params.refresh_coins === 'true') {
+      console.log('Detected return from exercise with coin reward');
+    }
+  }, [params.refresh_coins, params.timestamp]);
 
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -244,6 +255,31 @@ export default function BreathIndex() {
                     <Text style={{ color: colors.TEXT.SECONDARY, marginTop: 8 }}>
                       Pattern: {exercise.pattern.split('-').join(' - ')}
                     </Text>
+                    <View style={styles.metadataRow}>
+                      {/* Coin reward display */}
+                      <View style={styles.coinRewardContainer}>
+                        <Text style={[styles.coinRewardText, { color: colors.TEXT.SECONDARY }]}>
+                          Reward:
+                        </Text>
+                        <View style={styles.coinBadge}>
+                          <Text style={styles.coinEmoji}>💰</Text>
+                          <Text style={styles.coinAmount}>{BREATHING_EXERCISE_COIN_REWARD}</Text>
+                        </View>
+                      </View>
+                      
+                      {/* Duration display */}
+                      <View style={styles.durationContainer}>
+                        <MaterialCommunityIcons 
+                          name="clock-outline" 
+                          size={16} 
+                          color={colors.TEXT.SECONDARY} 
+                          style={{marginRight: 4}} 
+                        />
+                        <Text style={[styles.durationText, { color: colors.TEXT.SECONDARY }]}>
+                          {exercise.duration} min
+                        </Text>
+                      </View>
+                    </View>
                     <View style={styles.benefitsContainer}>
                       {exercise.benefits.map((benefit, i) => (
                         <Chip 
@@ -445,5 +481,46 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     marginBottom: 8,
-  }
+  },
+  metadataRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  coinRewardContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  coinRewardText: {
+    fontSize: 14,
+    marginRight: 4,
+  },
+  coinBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  coinEmoji: {
+    fontSize: 14,
+    marginRight: 4,
+  },
+  coinAmount: {
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#996515',
+  },
+  durationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  durationText: {
+    fontSize: 14,
+  },
 });
