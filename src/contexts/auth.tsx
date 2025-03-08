@@ -49,6 +49,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
       if (profileError) throw profileError;
+      
+      // Initialize user coins (this is also handled by DB trigger, but adding as a fallback)
+      const { error: coinError } = await supabase
+        .from('user_coins')
+        .insert({
+          user_id: authData.user.id,
+          coins: 100
+        });
+        
+      if (coinError) console.error('Error initializing user coins:', coinError);
     }
   };
 
