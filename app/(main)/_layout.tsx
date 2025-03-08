@@ -4,7 +4,7 @@ import { getNavigationTheme } from '../../src/styles/theme';
 import { MainTabParamList } from '../../src/types/navigation';
 import { useTheme } from '../../src/contexts/theme';
 import React from 'react';
-import { View, Animated, Pressable, StyleSheet, Dimensions, Switch, Platform, ScrollView, TextStyle } from 'react-native';
+import { View, Animated, Pressable, StyleSheet, Dimensions, Switch, Platform, ScrollView, TextStyle, ActivityIndicator } from 'react-native';
 import { Avatar, Text, IconButton, Button, Divider, RadioButton, Menu } from 'react-native-paper';
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../src/lib/supabase';
@@ -250,6 +250,8 @@ export default function MainLayout() {
   const router = useRouter();
   const pathname = usePathname();
   const [paletteMenuVisible, setPaletteMenuVisible] = useState(false);
+  const [coinBalance, setCoinBalance] = useState(0);
+  const [loadingCoins, setLoadingCoins] = useState(true);
   
   // Load custom fonts - update to use the exact font name from file
   const [fontsLoaded] = useFonts({
@@ -294,9 +296,39 @@ export default function MainLayout() {
 
       if (error) throw error;
       setProfile(data);
+
+      // Fetch coin balance after profile
+      await fetchCoinBalance(user.id);
     } catch (error) {
       console.error('Error fetching profile:', error);
       setProfile(null);
+    }
+  };
+
+  const fetchCoinBalance = async (userId: string) => {
+    try {
+      setLoadingCoins(true);
+      if (!userId) return;
+
+      // Get coin balance
+      const { data: coinData, error: coinError } = await supabase
+        .from('user_coins')
+        .select('coins')
+        .eq('user_id', userId)
+        .single();
+        
+      if (coinError) {
+        console.error('Error fetching coin balance:', coinError);
+        setCoinBalance(0);
+      } else {
+        console.log('Successfully fetched coin balance:', coinData);
+        setCoinBalance(coinData?.coins || 0);
+      }
+    } catch (error) {
+      console.error('Error in fetchCoinBalance:', error);
+      setCoinBalance(0);
+    } finally {
+      setLoadingCoins(false);
     }
   };
 
@@ -379,6 +411,87 @@ export default function MainLayout() {
     );
   };
 
+  // Header right section with coin display and profile button
+  const HeaderRight = () => (
+    <View style={{ 
+      flexDirection: 'row', 
+      alignItems: 'center',
+      height: '100%',
+    }}>
+      {profile && (
+        <Pressable 
+          style={({ pressed }) => ({
+            marginRight: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 20,
+            borderWidth: 1,
+            borderColor: 'rgba(255, 215, 0, 0.5)',
+            backgroundColor: pressed ? 
+              'rgba(255, 215, 0, 0.3)' : 
+              (theme === 'dark' ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 215, 0, 0.15)'),
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#FFD700',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.3,
+            shadowRadius: 2,
+            elevation: 2,
+            opacity: pressed ? 0.9 : 1,
+            transform: [{ scale: pressed ? 0.95 : 1 }],
+            minWidth: 70,
+          })}
+          onPress={() => router.push('/(main)/profile')}
+        >
+          <Text style={{ fontSize: 16 }}>💰</Text>
+          {loadingCoins ? (
+            <ActivityIndicator size={12} color="#FFD700" style={{ marginLeft: 4 }} />
+          ) : (
+            <Text style={{
+              color: theme === 'dark' ? '#FFD700' : '#996515',
+              fontWeight: 'bold',
+              fontSize: 14,
+              marginLeft: 4,
+            }}>
+              {coinBalance}
+            </Text>
+          )}
+        </Pressable>
+      )}
+      
+      {profile?.profile_pic_url ? (
+        <Pressable
+          onPress={toggleMenu}
+          style={({ pressed }) => ({
+            marginRight: 16,
+            opacity: pressed ? 0.7 : 1,
+            transform: [{ scale: pressed ? 0.95 : 1 }],
+            borderRadius: 20,
+            borderWidth: theme === 'dark' ? 1 : 0,
+            borderColor: theme === 'dark' ? colors.BORDER : 'transparent',
+            padding: 2,
+          })}
+        >
+          <Avatar.Image
+            size={32}
+            source={{ uri: profile.profile_pic_url }}
+          />
+        </Pressable>
+      ) : (
+        <IconButton
+          icon="account-circle-outline"
+          size={28}
+          iconColor={colors.ICONS.PRIMARY}
+          onPress={toggleMenu}
+          style={{ 
+            marginRight: 12,
+          }}
+        />
+      )}
+    </View>
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.BACKGROUND }}>
       {fontsLoaded ? (
@@ -432,64 +545,7 @@ export default function MainLayout() {
                 shadowOpacity: 0,
               },
               headerShadowVisible: false,
-              headerRight: () => (
-                <View style={{ 
-                  flexDirection: 'row', 
-                  alignItems: 'center',
-                  height: '100%',
-                }}>
-                  <IconButton
-                    icon="magnify"
-                    size={24}
-                    iconColor={colors.ICONS.PRIMARY}
-                    onPress={() => router.push('/(main)/search')}
-                    style={{ 
-                      marginRight: 4,
-                      backgroundColor: Platform.OS === 'ios' ? 
-                        (theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)') : 
-                        'transparent',
-                      borderRadius: 30,
-                      width: 40,
-                      height: 40,
-                    }}
-                  />
-                  {profile?.profile_pic_url ? (
-                    <Pressable
-                      onPress={toggleMenu}
-                      style={({ pressed }) => ({
-                        marginRight: 16,
-                        opacity: pressed ? 0.7 : 1,
-                        transform: [{ scale: pressed ? 0.95 : 1 }],
-                        borderRadius: 20,
-                        borderWidth: theme === 'dark' ? 1 : 0,
-                        borderColor: theme === 'dark' ? colors.BORDER : 'transparent',
-                        padding: 2,
-                      })}
-                    >
-                      <Avatar.Image
-                        size={32}
-                        source={{ uri: profile.profile_pic_url }}
-                      />
-                    </Pressable>
-                  ) : (
-                    <IconButton
-                      icon="account-circle-outline"
-                      size={28}
-                      iconColor={colors.ICONS.PRIMARY}
-                      onPress={toggleMenu}
-                      style={{ 
-                        marginRight: 8,
-                        backgroundColor: Platform.OS === 'ios' ? 
-                          (theme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)') : 
-                          'transparent',
-                        borderRadius: 30,
-                        width: 40,
-                        height: 40,
-                      }}
-                    />
-                  )}
-                </View>
-              ),
+              headerRight: () => <HeaderRight />,
             }}
           >
             <Tabs.Screen

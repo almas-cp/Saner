@@ -1,5 +1,5 @@
 import { View, StyleSheet, ScrollView, Pressable, RefreshControl } from 'react-native';
-import { Title, FAB, Card, Text, ActivityIndicator, Portal, Modal, Button, Avatar } from 'react-native-paper';
+import { Title, FAB, Card, Text, ActivityIndicator, Portal, Modal, Button, Avatar, IconButton } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
@@ -136,9 +136,23 @@ export default function Discover() {
           />
         }
       >
-        <Title style={[styles.title, { color: colors.TEXT.PRIMARY }]}>
-          Discover
-        </Title>
+        <View style={styles.headerContainer}>
+          <Title style={[styles.title, { color: colors.TEXT.PRIMARY }]}>
+            Discover
+          </Title>
+          
+          <IconButton
+            icon="magnify"
+            size={24}
+            iconColor={colors.TEXT.PRIMARY}
+            onPress={() => router.push('/(main)/search')}
+            style={{
+              marginLeft: 8,
+              backgroundColor: 'rgba(150, 150, 150, 0.1)', 
+              borderRadius: 20,
+            }}
+          />
+        </View>
 
         {loading && (
           <ActivityIndicator 
@@ -316,11 +330,15 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 24,
-    marginTop: 8,
   },
   postsGrid: {
     flexDirection: 'column',

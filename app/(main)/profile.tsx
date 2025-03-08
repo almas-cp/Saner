@@ -1,7 +1,7 @@
 import { View, StyleSheet, ScrollView, SafeAreaView, Animated, Platform, Pressable, Modal, RefreshControl } from 'react-native';
 import { Switch, List, Avatar, Text, IconButton, TextInput, Button, useTheme as usePaperTheme, Card, ActivityIndicator, Surface, Chip, RadioButton, HelperText } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
-import { MaterialCommunityIcons, MaterialIcons, FontAwesome } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../src/lib/supabase';
 import { useRouter } from 'expo-router';
@@ -23,10 +23,9 @@ type ProfileData = {
   is_doctor: boolean | null;
 };
 
-const ProfileStats = ({ refreshTrigger = 0 }) => {
+const ProfileStats = () => {
   const [postCount, setPostCount] = useState(0);
   const [followerCount, setFollowerCount] = useState(0);
-  const [coinBalance, setCoinBalance] = useState(0);
   const router = useRouter();
   const paperTheme = usePaperTheme();
 
@@ -51,32 +50,16 @@ const ProfileStats = ({ refreshTrigger = 0 }) => {
           .eq('following_id', user.id);
 
         if (followersError) throw followersError;
-        
-        // Get coin balance
-        const { data: coinData, error: coinError } = await supabase
-          .from('user_coins')
-          .select('coins')
-          .eq('user_id', user.id)
-          .single();
-          
-        if (coinError) {
-          console.error('Error fetching coin balance:', coinError);
-          // If there's no record yet, we'll display 0 coins
-        } else {
-          console.log('Successfully fetched coin balance:', coinData);
-        }
 
         setPostCount(posts || 0);
         setFollowerCount(followers || 0);
-        setCoinBalance(coinData?.coins || 0);
-        console.log('Current coin balance:', coinData?.coins || 0);
       } catch (error) {
         console.error('Error fetching stats:', error);
       }
     };
 
     fetchStats();
-  }, [refreshTrigger]);
+  }, []);
 
   return (
     <View style={[styles.statsContainer, { backgroundColor: paperTheme.colors.surface }]}>
@@ -101,15 +84,6 @@ const ProfileStats = ({ refreshTrigger = 0 }) => {
         </Text>
         <Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant }}>
           Followers
-        </Text>
-      </View>
-      <View style={[styles.statDivider, { backgroundColor: paperTheme.colors.outline }]} />
-      <View style={styles.statItem}>
-        <Text variant="headlineMedium" style={{ color: paperTheme.colors.primary, fontWeight: 'bold' }}>
-          {coinBalance}
-        </Text>
-        <Text variant="bodyMedium" style={{ color: paperTheme.colors.primary, fontWeight: 'bold' }}>
-          💰 Coins
         </Text>
       </View>
     </View>
@@ -315,8 +289,6 @@ export default function Profile() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const router = useRouter();
-  const [initializingCoins, setInitializingCoins] = useState(false);
-  const [statsRefreshTrigger, setStatsRefreshTrigger] = useState(0);
 
   const fetchProfile = async () => {
     try {
@@ -399,47 +371,6 @@ export default function Profile() {
       console.error('Error signing out:', error);
     }
   }
-
-  const initializeCoins = async () => {
-    try {
-      setInitializingCoins(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Check if user already has coins
-      const { data: existingCoins, error: checkError } = await supabase
-        .from('user_coins')
-        .select('coins')
-        .eq('user_id', user.id)
-        .single();
-
-      if (checkError && checkError.code === 'PGRST116') {
-        // No record found, let's create one
-        const { error: insertError } = await supabase
-          .from('user_coins')
-          .insert({
-            user_id: user.id,
-            coins: 100
-          });
-
-        if (insertError) {
-          console.error('Error initializing coins:', insertError);
-          alert('Failed to initialize coins. Please try again later.');
-        } else {
-          console.log('Successfully initialized coins for user');
-          alert('Your account has been credited with 100 coins!');
-          // Refresh the profile stats
-          setStatsRefreshTrigger(prev => prev + 1);
-        }
-      } else if (existingCoins) {
-        alert('You already have a coin balance of ' + existingCoins.coins);
-      }
-    } catch (error) {
-      console.error('Error in initializeCoins:', error);
-    } finally {
-      setInitializingCoins(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -566,7 +497,7 @@ export default function Profile() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'timing', duration: 500, delay: 200 }}
         >
-          <ProfileStats refreshTrigger={statsRefreshTrigger} />
+          <ProfileStats />
         </MotiView>
         
         <MotiView
@@ -575,19 +506,6 @@ export default function Profile() {
           transition={{ type: 'timing', duration: 500, delay: 400 }}
         >
           <SettingsSection theme={theme} toggleTheme={toggleTheme} />
-          
-          <List.Item
-            title={<Text variant="bodyLarge" style={{ color: paperTheme.colors.onBackground }}>Initialize Coins</Text>}
-            description={<Text variant="bodyMedium" style={{ color: paperTheme.colors.onSurfaceVariant }}>Get your initial 100 coins</Text>}
-            left={props => (
-              <View style={[props.style, {alignItems: 'center', justifyContent: 'center'}]}>
-                <Text style={{fontSize: 20, color: paperTheme.colors.primary}}>💰</Text>
-              </View>
-            )}
-            onPress={initializeCoins}
-            disabled={initializingCoins}
-            style={[styles.listItem, { borderBottomColor: paperTheme.colors.outline }]}
-          />
           
           <List.Item
             title={<Text variant="bodyLarge" style={{ color: paperTheme.colors.onBackground }}>Sign Out</Text>}
