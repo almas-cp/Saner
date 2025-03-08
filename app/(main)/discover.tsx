@@ -125,7 +125,7 @@ export default function Discover() {
     <View style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
       <ScrollView 
         style={styles.content}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

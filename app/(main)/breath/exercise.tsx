@@ -445,7 +445,7 @@ export default function Exercise() {
       </LinearGradient>
       
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
