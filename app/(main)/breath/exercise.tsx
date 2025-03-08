@@ -40,10 +40,10 @@ export default function Exercise() {
   // Parse the breathing pattern
   const patternArray = pattern ? (pattern as string).split('-').map(Number) : [4, 4, 4, 4];
   const timing: PhaseTiming = {
-    inhale: patternArray[0],
-    hold1: patternArray[1],
-    exhale: patternArray[2],
-    hold2: patternArray[3],
+    inhale: patternArray[0] || 4,
+    hold1: patternArray[1] || 4,
+    exhale: patternArray[2] || 4,
+    hold2: patternArray[3] || 4,
   };
 
   // State for managing the exercise
@@ -61,18 +61,32 @@ export default function Exercise() {
   const circleScale = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Reset animation values when component mounts
+  useEffect(() => {
+    circleScale.setValue(1);
+    fadeAnim.setValue(1);
+  }, []);
   
   // Session timer
   useEffect(() => {
-    let sessionTimer: NodeJS.Timeout;
-    
     if (isActive) {
-      sessionTimer = setInterval(() => {
+      sessionTimerRef.current = setInterval(() => {
         setSessionDuration(prev => prev + 1);
       }, 1000);
+    } else if (sessionTimerRef.current) {
+      clearInterval(sessionTimerRef.current);
+      sessionTimerRef.current = null;
     }
     
-    return () => clearInterval(sessionTimer);
+    return () => {
+      if (sessionTimerRef.current) {
+        clearInterval(sessionTimerRef.current);
+        sessionTimerRef.current = null;
+      }
+    };
   }, [isActive]);
   
   // Check authentication
@@ -85,6 +99,14 @@ export default function Exercise() {
     return () => {
       if (animationRef.current) {
         animationRef.current.stop();
+      }
+      
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      
+      if (sessionTimerRef.current) {
+        clearInterval(sessionTimerRef.current);
       }
     };
   }, []);
@@ -112,6 +134,11 @@ export default function Exercise() {
   
   // Function to move to the next phase
   const nextPhase = () => {
+    // Stop any running animation
+    if (animationRef.current) {
+      animationRef.current.stop();
+    }
+    
     switch(currentPhase) {
       case 'inhale':
         setCurrentPhase('hold1');
@@ -132,7 +159,7 @@ export default function Exercise() {
         setCurrentPhase('inhale');
         setCurrentTime(timing.inhale);
         startAnimation('inhale');
-        setCompletedCycles(completedCycles + 1);
+        setCompletedCycles(prev => prev + 1);
         break;
     }
   };
@@ -141,44 +168,113 @@ export default function Exercise() {
   const startAnimation = (phase: Phase) => {
     if (animationRef.current) {
       animationRef.current.stop();
+      animationRef.current = null;
+    }
+    
+    // Reset animation values based on the phase
+    if (phase === 'inhale') {
+      // Start from small circle for inhale
+      circleScale.setValue(1);
+    } else if (phase === 'exhale') {
+      // Start from large circle for exhale
+      circleScale.setValue(1.5);
+    } else if (phase === 'hold1') {
+      // Start from full opacity for hold1
+      fadeAnim.setValue(1);
+    } else if (phase === 'hold2') {
+      // Start from reduced opacity for hold2
+      fadeAnim.setValue(0.7);
     }
     
     let animation;
+    const duration = timing[phase] * 1000;
     
     switch(phase) {
       case 'inhale':
+        // Expand the circle during inhale
         animation = Animated.timing(circleScale, {
           toValue: 1.5,
-          duration: timing.inhale * 1000,
+          duration: duration,
           useNativeDriver: true,
         });
         break;
       case 'hold1':
+        // Reduce opacity during hold1
         animation = Animated.timing(fadeAnim, {
           toValue: 0.7,
-          duration: timing.hold1 * 500,
+          duration: duration,
           useNativeDriver: true,
         });
         break;
       case 'exhale':
+        // Shrink the circle during exhale
         animation = Animated.timing(circleScale, {
           toValue: 1,
-          duration: timing.exhale * 1000,
+          duration: duration,
           useNativeDriver: true,
         });
         break;
       case 'hold2':
+        // Increase opacity during hold2
         animation = Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: timing.hold2 * 500,
+          duration: duration,
           useNativeDriver: true,
         });
         break;
     }
     
-    if (animation) {
+    if (animation && isActive) {
       animationRef.current = animation;
       animation.start();
+    }
+  };
+  
+  // Finish the session
+  const finishSession = () => {
+    // Stop timers
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    if (sessionTimerRef.current) {
+      clearInterval(sessionTimerRef.current);
+      sessionTimerRef.current = null;
+    }
+    
+    if (isActive) {
+      setIsActive(false);
+      
+      // Stop any running animation
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
+    }
+    
+    // Only try to save if there's a meaningful session
+    if (completedCycles > 0 || sessionDuration > 10) {
+      // Show saving message
+      setSnackbarMessage('Saving your session...');
+      setSnackbarVisible(true);
+      
+      // Try to save and navigate back regardless of the outcome
+      saveSession()
+        .then(() => {
+          console.log('Session saved successfully');
+        })
+        .catch((error) => {
+          console.error('Error saving session:', error);
+        })
+        .finally(() => {
+          // Always navigate back after a short delay
+          setTimeout(() => {
+            router.replace('/(main)/breath');
+          }, 1500);
+        });
+    } else {
+      // If there's no meaningful session, just go back immediately
+      router.replace('/(main)/breath');
     }
   };
   
@@ -187,13 +283,13 @@ export default function Exercise() {
     if (!isAuthenticated) {
       setSnackbarMessage('Sign in to save your breathing sessions');
       setSnackbarVisible(true);
-      return;
+      return Promise.resolve();
     }
     
     if (sessionDuration < 10) {
       setSnackbarMessage('Sessions shorter than 10 seconds are not saved');
       setSnackbarVisible(true);
-      return;
+      return Promise.resolve();
     }
     
     try {
@@ -202,7 +298,7 @@ export default function Exercise() {
       if (!user) {
         setSnackbarMessage('Please sign in to save your session');
         setSnackbarVisible(true);
-        return;
+        return Promise.resolve();
       }
       
       const { error } = await supabase.from('breath_sessions').insert({
@@ -218,14 +314,17 @@ export default function Exercise() {
         console.error('Error saving session:', error);
         setSnackbarMessage('Failed to save session');
         setSnackbarVisible(true);
+        return Promise.reject(error);
       } else {
         setSnackbarMessage('Session saved successfully!');
         setSnackbarVisible(true);
+        return Promise.resolve();
       }
     } catch (error) {
       console.error('Error saving session:', error);
       setSnackbarMessage('An error occurred');
       setSnackbarVisible(true);
+      return Promise.reject(error);
     }
   };
   
@@ -236,28 +335,26 @@ export default function Exercise() {
       startAnimation(currentPhase);
     } else {
       setIsActive(false);
+      // Pause the animation
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
     }
-  };
-  
-  // Finish the session
-  const finishSession = () => {
-    if (isActive) {
-      setIsActive(false);
-    }
-    
-    // Only try to save if there's a meaningful session
-    if (completedCycles > 0 || sessionDuration > 30) {
-      saveSession();
-    }
-    
-    // Reset everything after a short delay
-    setTimeout(() => {
-      resetExercise();
-    }, 1500);
   };
   
   // Reset the exercise
   const resetExercise = () => {
+    // Stop timers
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    if (sessionTimerRef.current) {
+      clearInterval(sessionTimerRef.current);
+      sessionTimerRef.current = null;
+    }
+    
     setIsActive(false);
     setCurrentPhase('inhale');
     setCurrentTime(timing.inhale);
@@ -276,17 +373,28 @@ export default function Exercise() {
   
   // Timer countdown effect
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (isActive && currentTime > 0) {
-      interval = setInterval(() => {
-        setCurrentTime(currentTime - 1);
-      }, 1000);
-    } else if (isActive && currentTime === 0) {
-      nextPhase();
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
     
-    return () => clearInterval(interval);
+    if (isActive && currentTime > 0) {
+      timerRef.current = setInterval(() => {
+        setCurrentTime(prev => prev - 1);
+      }, 1000);
+    } else if (isActive && currentTime === 0) {
+      // Schedule the next phase after a short delay to avoid state update conflicts
+      setTimeout(() => {
+        nextPhase();
+      }, 50);
+    }
+    
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, [isActive, currentTime]);
 
   // Format seconds to minutes:seconds
@@ -298,10 +406,19 @@ export default function Exercise() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 1000));
     setRefreshing(false);
     resetExercise();
   };
+
+  // Update animation when isActive changes
+  useEffect(() => {
+    if (isActive) {
+      startAnimation(currentPhase);
+    } else if (animationRef.current) {
+      animationRef.current.stop();
+    }
+  }, [isActive]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
