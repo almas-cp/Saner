@@ -16,7 +16,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 const TAB_ICONS = {
   breath: 'weather-windy',
-  discover: 'compass',
+  discover: 'home',
   write: 'pencil',
   chat: 'chat',
   profile: 'account-circle-outline',
@@ -30,7 +30,7 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
 
   // Function to check if user is authenticated
   const checkAuthAndNavigate = async (routeName: string) => {
-    // Only allow discover page for unauthenticated users
+    // Only allow home page for unauthenticated users
     if (routeName !== 'discover') {
       // Check if user is authenticated
       const { data: { user } } = await supabase.auth.getUser();
@@ -180,7 +180,7 @@ const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
                     marginTop: 1,
                   }}
                 >
-                  {label}
+                  {route.name === 'discover' ? 'Home' : label}
                 </Text>
                 {isFocused && (
                   <View
