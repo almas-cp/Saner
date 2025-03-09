@@ -6,6 +6,7 @@ import { supabase } from '../../src/lib/supabase';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import { formatDistanceToNow } from 'date-fns';
+import { ConsultationStatus } from './professionals';
 
 type Database = {
   public: {
@@ -25,6 +26,33 @@ type Database = {
           name: string | null;
           username: string | null;
           profile_pic_url: string | null;
+          is_doctor: boolean;
+        };
+      };
+      consultations: {
+        Row: {
+          id: string;
+          client_id: string;
+          professional_id: string;
+          status: ConsultationStatus;
+          fee_paid: number;
+          created_at: string;
+        };
+      };
+      chats: {
+        Row: {
+          id: string;
+          consultation_id: string;
+          client_id: string;
+          professional_id: string;
+          client_name: string;
+          professional_name: string;
+          last_message: string;
+          last_message_time: string;
+          unread_client: number;
+          unread_professional: number;
+          created_at: string;
+          updated_at: string;
         };
       };
     };
@@ -33,6 +61,17 @@ type Database = {
 
 type ConnectionRequest = Database['public']['Tables']['connections']['Row'] & {
   requester: Database['public']['Tables']['profiles']['Row'];
+};
+
+type ConsultationChatItem = {
+  id: string;
+  consultation_id: string;
+  other_user_id: string;
+  other_user_name: string;
+  is_professional: boolean;
+  last_message: string | null;
+  last_message_time: string | null;
+  unread_count: number;
 };
 
 type ChatListItem = {
@@ -44,6 +83,7 @@ type ChatListItem = {
   last_message: string | null;
   last_message_time: string | null;
   unread_count: number;
+  is_consultation?: boolean;
 };
 
 export default function Chat() {
@@ -55,6 +95,10 @@ export default function Chat() {
   const [chatList, setChatList] = useState<ChatListItem[]>([]);
   const [unreadWallECount, setUnreadWallECount] = useState(0);
   const [message, setMessage] = useState('');
+  const [isProfessional, setIsProfessional] = useState<boolean>(false);
+  const [consultationChats, setConsultationChats] = useState<ConsultationChatItem[]>([]);
+  const [isConsultationsLoading, setIsConsultationsLoading] = useState(false);
+  const [isDoctor, setIsDoctor] = useState(false);
 
   const fetchWallEUnreadCount = async () => {
     try {
@@ -113,17 +157,63 @@ export default function Chat() {
     }
   };
 
-  const fetchChatList = async () => {
+  const fetchConsultationChats = async () => {
+    setIsConsultationsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      
+      console.log('Fetching consultation chats for user:', user.id);
+      
+      const { data: chats, error } = await supabase
+        .from('chats')
+        .select('*')
+        .or(`client_id.eq.${user.id},professional_id.eq.${user.id}`)
+        .order('last_message_time', { ascending: false });
+        
+      if (error) {
+        console.error('Error fetching consultation chats:', error);
+        return;
+      }
+      
+      console.log(`Found ${chats?.length || 0} consultation chats`);
+      
+      const transformedChats = chats?.map(chat => {
+        const isUserClient = chat.client_id === user.id;
+        return {
+          id: chat.id,
+          consultation_id: chat.consultation_id,
+          other_user_id: isUserClient ? chat.professional_id : chat.client_id,
+          other_user_name: isUserClient ? chat.professional_name : chat.client_name,
+          is_professional: !isUserClient,
+          last_message: chat.last_message,
+          last_message_time: chat.last_message_time,
+          unread_count: isUserClient ? chat.unread_client : chat.unread_professional
+        };
+      }) || [];
+      
+      setConsultationChats(transformedChats);
+    } catch (error) {
+      console.error('Error in fetchConsultationChats:', error);
+    } finally {
+      setIsConsultationsLoading(false);
+    }
+  };
 
-      const { data, error } = await supabase.rpc('get_chat_list', {
-        user_id: user.id
-      });
+  const fetchChatList = async () => {
+    setLoading(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('No user logged in');
+        setLoading(false);
+        return;
+      }
 
-      if (error) throw error;
-      setChatList(data || []);
+      await fetchConnectionRequests();
+      await fetchConsultationChats();
+      
     } catch (error) {
       console.error('Error fetching chat list:', error);
     } finally {
@@ -132,10 +222,10 @@ export default function Chat() {
   };
 
   useEffect(() => {
-    fetchConnectionRequests();
+    checkUserRole();
     fetchChatList();
+    fetchWallEUnreadCount();
 
-    // Subscribe to changes in connections and messages
     const channel = supabase
       .channel('chat_changes')
       .on(
@@ -189,6 +279,56 @@ export default function Chat() {
     } catch (error) {
       console.error('Error responding to connection request:', error);
     }
+  };
+
+  const checkUserRole = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('is_doctor')
+        .eq('id', user.id)
+        .single();
+        
+      if (error) {
+        console.error('Error checking user role:', error);
+        return;
+      }
+      
+      setIsDoctor(profile?.is_doctor || false);
+    } catch (error) {
+      console.error('Error in checkUserRole:', error);
+    }
+  };
+
+  const openConsultationChat = (chat: ConsultationChatItem) => {
+    router.push({
+      pathname: '/chat/[id]',
+      params: { 
+        id: chat.consultation_id,
+        isConsultation: 'true',
+        otherUserName: chat.other_user_name,
+        isDoctor: String(!chat.is_professional)
+      }
+    });
+  };
+
+  const getCombinedChatList = (): ChatListItem[] => {
+    const consultationChatItems: ChatListItem[] = consultationChats.map(chat => ({
+      connection_id: chat.consultation_id,
+      other_user_id: chat.other_user_id,
+      other_user_name: chat.other_user_name,
+      other_user_username: null,
+      other_user_profile_pic: null,
+      last_message: chat.last_message,
+      last_message_time: chat.last_message_time,
+      unread_count: chat.unread_count,
+      is_consultation: true
+    }));
+    
+    return [...consultationChatItems, ...chatList];
   };
 
   if (loading) {
@@ -245,6 +385,85 @@ export default function Chat() {
             />
           </Surface>
         </MotiView>
+        
+        <MotiView
+          from={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'timing', duration: 500, delay: 100 }}
+        >
+          {isDoctor ? (
+            <Surface style={[styles.medicalConsultCard, { 
+              backgroundColor: colors.SURFACE,
+              borderLeftColor: '#8E44AD'
+            }]}>
+              <List.Item
+                title="Attend Clients"
+                description="View and respond to consultation requests from users"
+                left={() => (
+                  <Avatar.Icon
+                    size={48}
+                    icon="account-multiple"
+                    style={{ backgroundColor: '#8E44AD' }}
+                  />
+                )}
+                right={() => (
+                  <View style={styles.consultButtonContainer}>
+                    <Button
+                      mode="contained"
+                      compact
+                      style={{ backgroundColor: '#8E44AD' }}
+                      labelStyle={{ color: 'white', fontSize: 12 }}
+                      onPress={() => {
+                        router.push({
+                          pathname: '/(main)/professionals',
+                          params: { mode: 'professional' }
+                        });
+                      }}
+                    >
+                      View Clients
+                    </Button>
+                  </View>
+                )}
+                titleStyle={{ color: colors.TEXT.PRIMARY }}
+                descriptionStyle={{ color: colors.TEXT.SECONDARY }}
+              />
+            </Surface>
+          ) : (
+            <Surface style={[styles.medicalConsultCard, { 
+              backgroundColor: colors.SURFACE,
+              borderLeftColor: '#4CAF50'
+            }]}>
+              <List.Item
+                title="Consult Medical Professional"
+                description="Get expert advice from licensed healthcare providers"
+                left={() => (
+                  <Avatar.Icon
+                    size={48}
+                    icon="doctor"
+                    style={{ backgroundColor: '#4CAF50' }}
+                  />
+                )}
+                right={() => (
+                  <View style={styles.consultButtonContainer}>
+                    <Button
+                      mode="contained"
+                      compact
+                      style={{ backgroundColor: '#4CAF50' }}
+                      labelStyle={{ color: 'white', fontSize: 12 }}
+                      onPress={() => {
+                        router.push('/(main)/professionals');
+                      }}
+                    >
+                      Connect
+                    </Button>
+                  </View>
+                )}
+                titleStyle={{ color: colors.TEXT.PRIMARY }}
+                descriptionStyle={{ color: colors.TEXT.SECONDARY }}
+              />
+            </Surface>
+          )}
+        </MotiView>
 
         {connectionRequests.length > 0 && (
           <View style={styles.section}>
@@ -298,11 +517,55 @@ export default function Chat() {
           </View>
         )}
 
+        {consultationChats.length > 0 && (
+          <View style={styles.section}>
+            <Title style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
+              Medical Consultations
+            </Title>
+            {isConsultationsLoading ? (
+              <ActivityIndicator size="large" color={colors.TAB_BAR.ACTIVE} />
+            ) : (
+              consultationChats.map(chat => (
+                <MotiView
+                  key={chat.id}
+                  from={{ opacity: 0, translateY: 20 }}
+                  animate={{ opacity: 1, translateY: 0 }}
+                  transition={{ type: 'timing', duration: 500, delay: 100 }}
+                >
+                  <Surface style={[styles.consultationCard, { backgroundColor: colors.SURFACE }]}>
+                    <List.Item
+                      title={chat.other_user_name}
+                      description={chat.last_message || 'No messages yet'}
+                      left={() => (
+                        <Avatar.Image
+                          size={48}
+                          source={{ uri: chat.other_user_profile_pic || 'https://i.pravatar.cc/300' }}
+                        />
+                      )}
+                      right={() => chat.unread_count > 0 && (
+                        <View style={styles.badgeContainer}>
+                          <Badge size={24} style={{ backgroundColor: colors.TAB_BAR.ACTIVE }}>
+                            {chat.unread_count}
+                          </Badge>
+                        </View>
+                      )}
+                      onPress={() => openConsultationChat(chat)}
+                      titleStyle={{ color: colors.TEXT.PRIMARY }}
+                      descriptionStyle={{ color: colors.TEXT.SECONDARY }}
+                      descriptionNumberOfLines={1}
+                    />
+                  </Surface>
+                </MotiView>
+              ))
+            )}
+          </View>
+        )}
+
         <Title style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY, marginTop: 16 }]}>
           Conversations
         </Title>
 
-        {chatList.length === 0 ? (
+        {getCombinedChatList().length === 0 ? (
           <MotiView
             from={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -314,7 +577,7 @@ export default function Chat() {
             </Text>
           </MotiView>
         ) : (
-          chatList.map((chat, index) => (
+          getCombinedChatList().map((chat, index) => (
             <MotiView
               key={chat.connection_id}
               from={{ opacity: 0, translateY: 20 }}
@@ -349,18 +612,16 @@ export default function Chat() {
                   descriptionNumberOfLines={1}
                 />
               </Surface>
-              {index < chatList.length - 1 && (
+              {index < getCombinedChatList().length - 1 && (
                 <Divider style={[styles.divider, { backgroundColor: colors.BORDER }]} />
               )}
             </MotiView>
           ))
         )}
         
-        {/* Add more height at the bottom to ensure scrolling works well with the input bar */}
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* New message input bar at the bottom */}
       <View style={[styles.messageInputContainer, { 
         backgroundColor: colors.SURFACE,
         borderTopColor: colors.BORDER
@@ -393,6 +654,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flex: 1,
+    padding: 16,
   },
   section: {
     padding: 16,
@@ -445,9 +707,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   wallECard: {
-    margin: 16,
-    marginBottom: 8,
+    marginBottom: 16,
     borderRadius: 12,
+    overflow: 'hidden',
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: {
@@ -456,6 +718,24 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.2,
     shadowRadius: 1.41,
+  },
+  medicalConsultCard: {
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 2,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+  },
+  consultButtonContainer: {
+    justifyContent: 'center',
+    marginRight: 8,
   },
   messageInputContainer: {
     flexDirection: 'row',
@@ -477,5 +757,10 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     marginLeft: 8,
-  }
+  },
+  consultationCard: {
+    borderRadius: 12,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
 }); 
