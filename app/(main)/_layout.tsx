@@ -15,7 +15,7 @@ import { BlurView } from 'expo-blur';
 import * as SplashScreen from 'expo-splash-screen';
 
 const TAB_ICONS = {
-  breath: 'weather-windy',
+  relax: 'weather-windy',
   discover: 'home',
   professionals: 'doctor',
   chat: 'chat',
@@ -24,7 +24,7 @@ const TAB_ICONS = {
 
 const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
   // Filter only the main tabs we want to show
-  const mainTabs = ['discover', 'breath', 'professionals', 'chat', 'profile'];
+  const mainTabs = ['discover', 'relax', 'professionals', 'chat', 'profile'];
   const visibleRoutes = state.routes.filter((route: any) => mainTabs.includes(route.name));
   const { theme } = useTheme();
 
@@ -274,7 +274,7 @@ export default function MainLayout() {
 
   // Check if we're on a protected page (any page except discover)
   const isOnProtectedPage = 
-    pathname === '/breath' || 
+    pathname === '/relax' || 
     pathname === '/professionals' || 
     pathname === '/chat' || 
     pathname === '/profile' ||
@@ -599,7 +599,7 @@ export default function MainLayout() {
               }}
             />
             <Tabs.Screen
-              name="breath"
+              name="relax"
               options={{
                 headerShown: true
               }}
