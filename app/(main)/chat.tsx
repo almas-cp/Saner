@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
 import { Title, Text, List, Avatar, Button, ActivityIndicator, Surface, Divider, Badge, IconButton } from 'react-native-paper';
 import { useTheme } from '../../src/contexts/theme';
@@ -6,7 +7,9 @@ import { supabase } from '../../src/lib/supabase';
 import { useRouter } from 'expo-router';
 import { MotiView } from 'moti';
 import { formatDistanceToNow } from 'date-fns';
-import { ConsultationStatus } from './professionals';
+
+// Define types
+type ConsultationStatus = 'pending' | 'active' | 'completed' | 'cancelled';
 
 type Database = {
   public: {
@@ -68,13 +71,14 @@ type ConsultationChatItem = {
   consultation_id: string;
   other_user_id: string;
   other_user_name: string;
+  other_user_profile_pic?: string | null;
   is_professional: boolean;
   last_message: string | null;
   last_message_time: string | null;
   unread_count: number;
 };
 
-type ChatListItem = {
+type RegularChatItem = {
   connection_id: string;
   other_user_id: string;
   other_user_name: string | null;
@@ -83,7 +87,6 @@ type ChatListItem = {
   last_message: string | null;
   last_message_time: string | null;
   unread_count: number;
-  is_consultation?: boolean;
 };
 
 export default function Chat() {
@@ -92,13 +95,17 @@ export default function Chat() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([]);
-  const [chatList, setChatList] = useState<ChatListItem[]>([]);
-  const [unreadWallECount, setUnreadWallECount] = useState(0);
-  const [message, setMessage] = useState('');
-  const [isProfessional, setIsProfessional] = useState<boolean>(false);
+  const [regularChats, setRegularChats] = useState<RegularChatItem[]>([]);
   const [consultationChats, setConsultationChats] = useState<ConsultationChatItem[]>([]);
+  const [unreadWallECount, setUnreadWallECount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isConsultationsLoading, setIsConsultationsLoading] = useState(false);
   const [isDoctor, setIsDoctor] = useState(false);
+  const [message, setMessage] = useState('');
+  const [loadingWallE, setLoadingWallE] = useState(false);
+  const [wallEUnreadCount, setWallEUnreadCount] = useState(0);
+  const [isWallEChatOpen, setIsWallEChatOpen] = useState(false);
+  const [showConnectionRequests, setShowConnectionRequests] = useState(false);
 
   const fetchWallEUnreadCount = async () => {
     try {
@@ -153,22 +160,38 @@ export default function Chat() {
         })()
       ]);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching connection requests:', error);
     }
   };
 
   const fetchConsultationChats = async () => {
-    setIsConsultationsLoading(true);
     try {
+      setIsConsultationsLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      console.log('Fetching consultation chats for user:', user.id);
+      console.log('Fetching active consultation chats for user:', user.id);
       
-      const { data: chats, error } = await supabase
+      const { data, error } = await supabase
         .from('chats')
-        .select('*')
+        .select(`
+          id,
+          consultation_id,
+          client_id,
+          professional_id,
+          client_name,
+          professional_name,
+          last_message,
+          last_message_time,
+          unread_client,
+          unread_professional,
+          created_at,
+          updated_at,
+          is_active
+        `)
         .or(`client_id.eq.${user.id},professional_id.eq.${user.id}`)
+        .not('consultation_id', 'is', null)
+        .eq('is_active', true) // Only fetch active chats
         .order('last_message_time', { ascending: false });
         
       if (error) {
@@ -176,23 +199,31 @@ export default function Chat() {
         return;
       }
       
-      console.log(`Found ${chats?.length || 0} consultation chats`);
+      console.log(`Found ${data?.length || 0} active consultation chats`);
       
-      const transformedChats = chats?.map(chat => {
-        const isUserClient = chat.client_id === user.id;
-        return {
+      const activeChatItems: ConsultationChatItem[] = [];
+
+      data?.forEach(chat => {
+        const isClient = chat.client_id === user.id;
+        const otherUserId = isClient ? chat.professional_id : chat.client_id;
+        const otherUserName = isClient ? chat.professional_name : chat.client_name;
+        const unreadCount = isClient ? chat.unread_client : chat.unread_professional;
+
+        const chatItem: ConsultationChatItem = {
           id: chat.id,
           consultation_id: chat.consultation_id,
-          other_user_id: isUserClient ? chat.professional_id : chat.client_id,
-          other_user_name: isUserClient ? chat.professional_name : chat.client_name,
-          is_professional: !isUserClient,
-          last_message: chat.last_message,
-          last_message_time: chat.last_message_time,
-          unread_count: isUserClient ? chat.unread_client : chat.unread_professional
+          other_user_id: otherUserId,
+          other_user_name: otherUserName || 'User',
+          is_professional: !isClient,
+          last_message: chat.last_message || 'No messages yet',
+          last_message_time: chat.last_message_time || chat.updated_at,
+          unread_count: unreadCount || 0
         };
-      }) || [];
+
+        activeChatItems.push(chatItem);
+      });
       
-      setConsultationChats(transformedChats);
+      setConsultationChats(activeChatItems);
     } catch (error) {
       console.error('Error in fetchConsultationChats:', error);
     } finally {
@@ -200,7 +231,87 @@ export default function Chat() {
     }
   };
 
-  const fetchChatList = async () => {
+  const fetchRegularChats = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch regular chats with a direct query instead of RPC
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          id,
+          sender_id,
+          receiver_id,
+          content,
+          created_at,
+          read_at,
+          profiles:sender_id(name, username, profile_pic_url),
+          receiver:receiver_id(name, username, profile_pic_url)
+        `)
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching regular chats:', error);
+        return;
+      }
+
+      // Process messages to get unique chats
+      const chatMap = new Map<string, RegularChatItem>();
+      
+      if (data) {
+        // Use any type to safely handle the nested structure
+        (data as any[]).forEach(message => {
+          const isFromCurrentUser = message.sender_id === user.id;
+          const otherUserId = isFromCurrentUser ? message.receiver_id : message.sender_id;
+          
+          if (!chatMap.has(otherUserId)) {
+            // Default values
+            let otherUserName = 'User';
+            let otherUserUsername = null;
+            let otherUserProfilePic = null;
+            
+            try {
+              // Safely access nested properties
+              if (isFromCurrentUser && message.receiver) {
+                otherUserName = message.receiver.name || 'User';
+                otherUserUsername = message.receiver.username;
+                otherUserProfilePic = message.receiver.profile_pic_url;
+              } else if (!isFromCurrentUser && message.profiles) {
+                otherUserName = message.profiles.name || 'User';
+                otherUserUsername = message.profiles.username;
+                otherUserProfilePic = message.profiles.profile_pic_url;
+              }
+            } catch (e) {
+              console.error('Error parsing profile data:', e);
+            }
+            
+            chatMap.set(otherUserId, {
+              connection_id: otherUserId, // Using the user ID as a connection ID
+              other_user_id: otherUserId,
+              other_user_name: otherUserName,
+              other_user_username: otherUserUsername,
+              other_user_profile_pic: otherUserProfilePic,
+              last_message: message.content,
+              last_message_time: message.created_at,
+              unread_count: (!isFromCurrentUser && !message.read_at) ? 1 : 0
+            });
+          }
+        });
+      }
+      
+      // Convert Map to array
+      const formattedChats = Array.from(chatMap.values());
+      setRegularChats(formattedChats);
+      
+      console.log(`Found ${formattedChats.length} regular chats`);
+    } catch (error) {
+      console.error('Error in fetchRegularChats:', error);
+    }
+  };
+
+  const fetchAllChatData = async () => {
     setLoading(true);
     
     try {
@@ -211,19 +322,22 @@ export default function Chat() {
         return;
       }
 
-      await fetchConnectionRequests();
-      await fetchConsultationChats();
+      await Promise.all([
+        fetchConnectionRequests(),
+        fetchConsultationChats(),
+        fetchRegularChats(),
+        checkUserRole()
+      ]);
       
     } catch (error) {
-      console.error('Error fetching chat list:', error);
+      console.error('Error fetching chat data:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    checkUserRole();
-    fetchChatList();
+    fetchAllChatData();
     fetchWallEUnreadCount();
 
     const channel = supabase
@@ -237,7 +351,7 @@ export default function Chat() {
         },
         () => {
           fetchConnectionRequests();
-          fetchChatList();
+          fetchAllChatData();
         }
       )
       .on(
@@ -248,7 +362,7 @@ export default function Chat() {
           table: 'messages',
         },
         () => {
-          fetchChatList();
+          fetchAllChatData();
         }
       )
       .subscribe();
@@ -260,10 +374,7 @@ export default function Chat() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    Promise.all([
-      fetchConnectionRequests(),
-      fetchChatList()
-    ]).finally(() => setRefreshing(false));
+    fetchAllChatData().finally(() => setRefreshing(false));
   }, []);
 
   const handleConnectionResponse = async (connectionId: string, accept: boolean) => {
@@ -304,31 +415,8 @@ export default function Chat() {
   };
 
   const openConsultationChat = (chat: ConsultationChatItem) => {
-    router.push({
-      pathname: '/chat/[id]',
-      params: { 
-        id: chat.consultation_id,
-        isConsultation: 'true',
-        otherUserName: chat.other_user_name,
-        isDoctor: String(!chat.is_professional)
-      }
-    });
-  };
-
-  const getCombinedChatList = (): ChatListItem[] => {
-    const consultationChatItems: ChatListItem[] = consultationChats.map(chat => ({
-      connection_id: chat.consultation_id,
-      other_user_id: chat.other_user_id,
-      other_user_name: chat.other_user_name,
-      other_user_username: null,
-      other_user_profile_pic: null,
-      last_message: chat.last_message,
-      last_message_time: chat.last_message_time,
-      unread_count: chat.unread_count,
-      is_consultation: true
-    }));
-    
-    return [...consultationChatItems, ...chatList];
+    console.log('Opening consultation chat', chat.consultation_id);
+    router.push(`/(main)/chat/${chat.consultation_id}`);
   };
 
   if (loading) {
@@ -472,7 +560,7 @@ export default function Chat() {
             </Title>
             {connectionRequests.map((request, index) => (
               <MotiView
-                key={request.id}
+                key={`request-${request.id}`}
                 from={{ opacity: 0, translateX: -20 }}
                 animate={{ opacity: 1, translateX: 0 }}
                 transition={{ type: 'timing', duration: 500, delay: index * 100 }}
@@ -517,55 +605,111 @@ export default function Chat() {
           </View>
         )}
 
-        {consultationChats.length > 0 && (
-          <View style={styles.section}>
-            <Title style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
-              Medical Consultations
-            </Title>
-            {isConsultationsLoading ? (
-              <ActivityIndicator size="large" color={colors.TAB_BAR.ACTIVE} />
-            ) : (
-              consultationChats.map(chat => (
+        <View style={styles.sectionContainer}>
+          <Text variant="titleLarge" style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY }]}>
+            Medical Consultations
+          </Text>
+          
+          {isConsultationsLoading ? (
+            <ActivityIndicator size="small" color={colors.TAB_BAR.ACTIVE} style={styles.loadingIndicator} />
+          ) : consultationChats.length === 0 ? (
+            <Text style={[styles.emptyText, { color: colors.TEXT.SECONDARY }]}>
+              No medical consultations yet
+            </Text>
+          ) : (
+            <>
+              {consultationChats.map((chat) => (
                 <MotiView
-                  key={chat.id}
+                  key={`active-${chat.id}`}
                   from={{ opacity: 0, translateY: 20 }}
                   animate={{ opacity: 1, translateY: 0 }}
                   transition={{ type: 'timing', duration: 500, delay: 100 }}
                 >
-                  <Surface style={[styles.consultationCard, { backgroundColor: colors.SURFACE }]}>
+                  <Surface style={[
+                    styles.consultationCard, 
+                    { 
+                      backgroundColor: colors.SURFACE,
+                      borderLeftWidth: 4,
+                      borderLeftColor: '#4CAF50'
+                    }
+                  ]}>
                     <List.Item
                       title={chat.other_user_name}
-                      description={chat.last_message || 'No messages yet'}
+                      description={
+                        <View>
+                          <Text 
+                            style={{ 
+                              color: colors.TEXT.SECONDARY,
+                              marginBottom: 2 
+                            }}
+                            numberOfLines={1}
+                          >
+                            {chat.last_message}
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              color: '#4CAF50',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Medical Consultation
+                          </Text>
+                        </View>
+                      }
                       left={() => (
-                        <Avatar.Image
-                          size={48}
-                          source={{ uri: chat.other_user_profile_pic || 'https://i.pravatar.cc/300' }}
-                        />
+                        <View style={{ position: 'relative' }}>
+                          <Avatar.Image
+                            size={48}
+                            source={{ uri: chat.other_user_profile_pic || 'https://i.pravatar.cc/300' }}
+                          />
+                          <View 
+                            style={{ 
+                              position: 'absolute',
+                              bottom: -2,
+                              right: -2,
+                              backgroundColor: '#4CAF50',
+                              borderRadius: 10,
+                              width: 20,
+                              height: 20,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              borderWidth: 2,
+                              borderColor: colors.SURFACE
+                            }}
+                          >
+                            <IconButton
+                              icon="doctor"
+                              size={10}
+                              iconColor="#FFF"
+                              style={{ margin: 0 }}
+                            />
+                          </View>
+                        </View>
                       )}
                       right={() => chat.unread_count > 0 && (
                         <View style={styles.badgeContainer}>
-                          <Badge size={24} style={{ backgroundColor: colors.TAB_BAR.ACTIVE }}>
+                          <Badge size={24} style={{ backgroundColor: '#4CAF50' }}>
                             {chat.unread_count}
                           </Badge>
                         </View>
                       )}
                       onPress={() => openConsultationChat(chat)}
                       titleStyle={{ color: colors.TEXT.PRIMARY }}
-                      descriptionStyle={{ color: colors.TEXT.SECONDARY }}
-                      descriptionNumberOfLines={1}
+                      descriptionNumberOfLines={2}
                     />
                   </Surface>
                 </MotiView>
-              ))
-            )}
-          </View>
-        )}
+              ))}
+            </>
+          )}
+        </View>
 
         <Title style={[styles.sectionTitle, { color: colors.TEXT.PRIMARY, marginTop: 16 }]}>
           Conversations
         </Title>
 
-        {getCombinedChatList().length === 0 ? (
+        {regularChats.length === 0 ? (
           <MotiView
             from={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -577,9 +721,9 @@ export default function Chat() {
             </Text>
           </MotiView>
         ) : (
-          getCombinedChatList().map((chat, index) => (
+          regularChats.map((chat, index) => (
             <MotiView
-              key={chat.connection_id}
+              key={`connection-${chat.connection_id}`}
               from={{ opacity: 0, translateY: 20 }}
               animate={{ opacity: 1, translateY: 0 }}
               transition={{ type: 'timing', duration: 500, delay: index * 100 }}
@@ -612,7 +756,7 @@ export default function Chat() {
                   descriptionNumberOfLines={1}
                 />
               </Surface>
-              {index < getCombinedChatList().length - 1 && (
+              {index < regularChats.length - 1 && (
                 <Divider style={[styles.divider, { backgroundColor: colors.BORDER }]} />
               )}
             </MotiView>
@@ -763,4 +907,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     overflow: 'hidden',
   },
+  sectionContainer: {
+    padding: 16,
+  },
+  loadingIndicator: {
+    marginVertical: 16
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginVertical: 16
+  }
 }); 

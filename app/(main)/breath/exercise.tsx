@@ -9,14 +9,15 @@ import {
   ScrollView,
   RefreshControl
 } from 'react-native';
-import { Text, Button, Snackbar } from 'react-native-paper';
+import { Text, Button, Snackbar, IconButton } from 'react-native-paper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../../src/contexts/theme';
 import { getCommonStyles } from '../../../src/styles/commonStyles';
 import { supabase } from '../../../src/lib/supabase';
 import { MotiView } from 'moti';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Audio } from 'expo-av';
 
 // Define the coin reward amount as a constant
 const BREATHING_EXERCISE_COIN_REWARD = 10;
@@ -31,11 +32,19 @@ type PhaseTiming = {
 
 type Phase = 'inhale' | 'hold1' | 'exhale' | 'hold2';
 
+// Available music tracks
+const musicTracks = [
+  { id: 1, name: 'Calm Meditation', filename: require('../../../assets/Music/1.mp3') },
+  { id: 2, name: 'Deep Relaxation', filename: require('../../../assets/Music/2.mp3') },
+  { id: 3, name: 'Peaceful Harmony', filename: require('../../../assets/Music/3.mp3') },
+  { id: 4, name: 'Tranquil Mind', filename: require('../../../assets/Music/4.mp3') },
+];
+
 // Exercise component
 export default function Exercise() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { name, pattern } = params;
+  const { name, pattern, includeMusic, selectedTrack } = params;
   
   const { theme, colors, palette } = useTheme();
   const commonStyles = getCommonStyles(theme, palette);
@@ -69,6 +78,13 @@ export default function Exercise() {
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Music player state
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [selectedTrackId, setSelectedTrackId] = useState<number>(selectedTrack ? parseInt(selectedTrack as string) : 1);
+  const [showMusicControls, setShowMusicControls] = useState(includeMusic === 'true');
+  const [volume, setVolume] = useState(0.7);
   
   // Reset animation values when component mounts
   useEffect(() => {
@@ -294,6 +310,11 @@ export default function Exercise() {
       // If there's no meaningful session, just go back immediately
       router.replace('/(main)/breath');
     }
+    
+    // Stop music
+    if (sound) {
+      pauseMusic();
+    }
   };
   
   // Save session data to the database and reward coins
@@ -424,11 +445,88 @@ export default function Exercise() {
     });
   };
   
+  // Play background music
+  const playMusic = async () => {
+    try {
+      // Unload any existing sound
+      if (sound) {
+        await sound.unloadAsync();
+      }
+      
+      // Create a new sound object
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        musicTracks[selectedTrackId - 1].filename,
+        { isLooping: true, volume: volume },
+        (status) => {
+          if (status.didJustFinish) {
+            // Handle track finished if not looping
+          }
+        }
+      );
+      
+      setSound(newSound);
+      await newSound.playAsync();
+      setIsPlaying(true);
+      
+    } catch (error) {
+      console.error('Error playing music:', error);
+      setSnackbarMessage('Failed to play music');
+      setSnackbarVisible(true);
+    }
+  };
+  
+  // Pause background music
+  const pauseMusic = async () => {
+    if (sound) {
+      await sound.pauseAsync();
+      setIsPlaying(false);
+    }
+  };
+  
+  // Toggle music playback
+  const toggleMusic = async () => {
+    if (!sound || !isPlaying) {
+      playMusic();
+    } else {
+      pauseMusic();
+    }
+  };
+  
+  // Change track
+  const changeTrack = (trackId: number) => {
+    setSelectedTrackId(trackId);
+    if (isPlaying) {
+      // If music is already playing, switch to the new track
+      playMusic();
+    }
+  };
+  
+  // Adjust volume
+  const adjustVolume = async (newVolume: number) => {
+    setVolume(newVolume);
+    if (sound) {
+      await sound.setVolumeAsync(newVolume);
+    }
+  };
+  
+  // Clean up sound resources when unmounting
+  useEffect(() => {
+    return () => {
+      if (sound) {
+        sound.unloadAsync();
+      }
+    };
+  }, [sound]);
+  
   // Start or pause the exercise
   const toggleActive = () => {
     if (!isActive) {
       setIsActive(true);
       startAnimation(currentPhase);
+      // Start music automatically when exercise starts
+      if (showMusicControls && !isPlaying) {
+        playMusic();
+      }
     } else {
       setIsActive(false);
       // Pause the animation
@@ -464,6 +562,11 @@ export default function Exercise() {
     if (animationRef.current) {
       animationRef.current.stop();
       animationRef.current = null;
+    }
+    
+    // Optionally pause music when resetting
+    if (isPlaying) {
+      pauseMusic();
     }
   };
   
@@ -516,6 +619,18 @@ export default function Exercise() {
     }
   }, [isActive]);
 
+  // Use effect to check if this exercise should include music
+  useEffect(() => {
+    if (includeMusic === 'true' && !isPlaying) {
+      // Wait for component to mount properly
+      const timer = setTimeout(() => {
+        playMusic();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.BACKGROUND }]}>
       <LinearGradient
@@ -538,6 +653,18 @@ export default function Exercise() {
             {name || 'Breathing Exercise'}
           </Text>
           
+          {/* Music Therapy Toggle */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.musicToggle,
+              { opacity: pressed ? 0.7 : 1 }
+            ]}
+            onPress={() => setShowMusicControls(!showMusicControls)}
+          >
+            <MaterialIcons name={showMusicControls ? "music-note" : "music-off"} size={22} color="white" />
+            <Text style={styles.musicToggleText}>Music Therapy</Text>
+          </Pressable>
+          
           {/* Coin reward indicator */}
           <View style={styles.coinIndicator}>
             <Text style={styles.coinIndicatorText}>Complete to earn:</Text>
@@ -558,6 +685,71 @@ export default function Exercise() {
           />
         }
       >
+        {/* Music Controls Section */}
+        {showMusicControls && (
+          <View style={[styles.musicControlsContainer, { backgroundColor: theme === 'dark' ? 'rgba(30,30,30,0.9)' : 'rgba(240,240,240,0.9)' }]}>
+            <Text style={[styles.musicTitle, { color: colors.TEXT.PRIMARY }]}>
+              Music Therapy
+            </Text>
+            
+            <View style={styles.musicControls}>
+              <IconButton
+                icon={isPlaying ? "pause" : "play"}
+                iconColor={colors.TAB_BAR.ACTIVE}
+                size={30}
+                onPress={toggleMusic}
+                style={styles.playButton}
+              />
+              
+              <View style={styles.trackSelector}>
+                {musicTracks.map(track => (
+                  <Pressable
+                    key={track.id}
+                    style={[
+                      styles.trackButton,
+                      selectedTrackId === track.id && { 
+                        backgroundColor: colors.TAB_BAR.ACTIVE,
+                        borderColor: colors.TAB_BAR.ACTIVE
+                      }
+                    ]}
+                    onPress={() => changeTrack(track.id)}
+                  >
+                    <Text style={[
+                      styles.trackText,
+                      selectedTrackId === track.id && { color: '#fff' }
+                    ]}>
+                      {track.id}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              
+              <View style={styles.volumeControl}>
+                <MaterialIcons name="volume-down" size={20} color={colors.TEXT.SECONDARY} />
+                <Pressable
+                  style={styles.volumeSlider}
+                  onPress={(e) => {
+                    const width = 100; // Width of our slider
+                    const position = e.nativeEvent.locationX;
+                    const newVolume = Math.max(0, Math.min(1, position / width));
+                    adjustVolume(newVolume);
+                  }}
+                >
+                  <View style={styles.volumeSliderTrack}>
+                    <View 
+                      style={[
+                        styles.volumeSliderFill, 
+                        { width: `${volume * 100}%`, backgroundColor: colors.TAB_BAR.ACTIVE }
+                      ]} 
+                    />
+                  </View>
+                </Pressable>
+                <MaterialIcons name="volume-up" size={20} color={colors.TEXT.SECONDARY} />
+              </View>
+            </View>
+          </View>
+        )}
+        
         <View style={styles.content}>
           <View style={styles.infoContainer}>
             <MotiView
@@ -875,5 +1067,85 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  musicToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  musicToggleText: {
+    fontSize: 14,
+    marginLeft: 4,
+    color: 'white',
+  },
+  musicControlsContainer: {
+    margin: 16,
+    marginTop: 8,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.23,
+    shadowRadius: 2.62,
+    elevation: 4,
+  },
+  musicTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  musicControls: {
+    alignItems: 'center',
+  },
+  playButton: {
+    marginBottom: 12,
+  },
+  trackSelector: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    gap: 10,
+  },
+  trackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.2)',
+  },
+  trackText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  volumeControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '80%',
+    justifyContent: 'space-between',
+  },
+  volumeSlider: {
+    height: 20,
+    width: '70%',
+    justifyContent: 'center',
+  },
+  volumeSliderTrack: {
+    height: 4,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 2,
+    width: '100%',
+  },
+  volumeSliderFill: {
+    height: 4,
+    borderRadius: 2,
   },
 });

@@ -1,5 +1,5 @@
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
-import { Text, Avatar, TextInput, IconButton, Surface, ActivityIndicator } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable, Alert, RefreshControl } from 'react-native';
+import { Text, Avatar, TextInput, IconButton, Surface, ActivityIndicator, Menu, Divider, Dialog, Portal, Button } from 'react-native-paper';
 import { useTheme } from '../../../src/contexts/theme';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -10,8 +10,11 @@ import {
   sendConsultationMessage, 
   isConsultationChat,
   fetchConsultationMessages,
-  getSenderType 
+  getSenderType,
+  endConsultationSession
 } from '../../../src/utils/consultationUtils';
+import { Appbar } from 'react-native-paper';
+import { Badge } from 'react-native-paper';
 
 type Message = {
   id: string;
@@ -69,15 +72,28 @@ const getOtherUserIdFromConsultation = async (consultationId: string, currentUse
 };
 
 export default function ChatConversation() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const { colors } = useTheme();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [otherUser, setOtherUser] = useState<Profile | null>(null);
+  const [isConsultationChatState, setIsConsultationChatState] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [otherUserId, setOtherUserId] = useState<string | null>(null);
+  const [isChatActive, setIsChatActive] = useState(true);
+  const [isDoctor, setIsDoctor] = useState(false);
+  const [isMenuVisible, setIsMenuVisible] = useState(false);
+  const [isConfirmDialogVisible, setIsConfirmDialogVisible] = useState(false);
+  const [selectedChat, setSelectedChat] = useState<any>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<'client' | 'doctor' | null>(null);
+  const [otherUserName, setOtherUserName] = useState<string>('User');
   const scrollViewRef = useRef<ScrollView>(null);
+  const [sessionEndingLoading, setSessionEndingLoading] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const textInputRef = useRef<TextInput>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const addMessageToList = (message: Message) => {
     setMessages(prev => [...prev, message]);
@@ -94,17 +110,101 @@ export default function ChatConversation() {
         logChat('No authenticated user found');
         return;
       }
+      
+      // Store current user ID for use in other functions
       setCurrentUserId(user.id);
       logChat('Current user', { userId: user.id });
-
-      // Check if this is a consultation chat
+      
+      // Check if this is a consultation chat using the proper utility function
       const isConsultation = await isConsultationChat(id as string);
+      logChat(isConsultation ? 'This is a consultation chat' : 'This is a regular chat');
       
       if (isConsultation) {
-        logChat('This is a consultation chat');
+        // Get the chat status and details
+        const { data, error } = await supabase
+          .from('chats')
+          .select(`
+            id,
+            consultation_id,
+            is_active,
+            client_id,
+            professional_id,
+            consultations:consultation_id(status)
+          `)
+          .eq('consultation_id', id)
+          .single();
+        
+        if (error) {
+          logChat('Error fetching chat', { error });
+          return;
+        }
+        
+        // Fix - Get the status from the nested object using a safer approach
+        let consultationStatus = 'unknown';
+        
+        if (data?.consultations) {
+          // Add debug log to see the actual structure
+          console.log('Consultation data structure:', JSON.stringify(data.consultations));
+          
+          try {
+            // Use type assertion with any to bypass TypeScript's checks
+            const consultationsData = data.consultations as any;
+            if (Array.isArray(consultationsData) && consultationsData.length > 0) {
+              consultationStatus = consultationsData[0].status;
+            } else if (typeof consultationsData === 'object') {
+              consultationStatus = consultationsData.status;
+            }
+          } catch (err) {
+            console.error('Error extracting consultation status:', err);
+          }
+        }
+        
+        logChat('Consultation status check', { consultationStatus });
+        
+        // Store the chat data for use in endConsultationSession
+        setSelectedChat({
+          id: data.id,
+          is_consultation: true,
+          consultation_id: data.consultation_id,
+          is_active: data.is_active,
+          client_id: data.client_id,
+          professional_id: data.professional_id
+        });
+        
+        // Check consultation status and active flag
+        const isConsultationActive = 
+          data?.is_active === true && 
+          consultationStatus !== 'completed' && 
+          consultationStatus !== 'ended';
+        
+        logChat('Chat status check', { 
+          is_active: data?.is_active, 
+          consultation_status: consultationStatus,
+          isConsultationActive
+        });
+        
+        setIsConsultationChatState(true);
+        setIsChatActive(isConsultationActive);
+        
+        // Determine if current user is a doctor
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('is_doctor')
+          .eq('id', user.id)
+          .single();
+        
+        setIsDoctor(userProfile?.is_doctor || false);
         
         // For consultation chats, we need to get the actual other user ID
-        const otherUserId = await getOtherUserIdFromConsultation(id as string, user.id);
+        // If the user is the client, the other user is the professional
+        let otherUserId;
+        if (data.client_id === user.id) {
+          otherUserId = data.professional_id;
+          setCurrentUserRole('client');
+        } else {
+          otherUserId = data.client_id;
+          setCurrentUserRole('doctor');
+        }
         
         if (!otherUserId) {
           logChat('Could not determine the other user in this consultation');
@@ -112,7 +212,10 @@ export default function ChatConversation() {
           return;
         }
         
-        // Now get the other user's profile using the correct ID
+        // Store the other user ID for message rendering
+        setOtherUserId(otherUserId);
+        
+        // Now get the other user's profile
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -139,29 +242,38 @@ export default function ChatConversation() {
         });
         
         setOtherUser(safeProfileData);
+        setOtherUserName(safeProfileData.name || 'User');
         
         // Get consultation chat messages
-        const { messages, error: messagesError } = await fetchConsultationMessages(id as string);
+        const { messages: fetchedMessages, error: messagesError } = await fetchConsultationMessages(id);
         
         if (messagesError) {
           logChat('Error fetching consultation messages', messagesError);
         } else {
-          logChat('Messages fetched', { count: messages.length });
+          logChat('Messages fetched', { count: fetchedMessages.length });
           
-          // Transform to the format needed by UI
-          const formattedMessages = messages.map(msg => ({
-            id: msg.id,
-            content: msg.message,
-            sender_id: msg.sender_id,
-            receiver_id: 'consultation', // Doesn't matter for consultation chats
-            created_at: msg.created_at,
-            read_at: msg.read ? new Date().toISOString() : null
-          }));
+          // Fix: Map the database message format to the UI expected format
+          const formattedMessages = fetchedMessages.map(msg => {
+            // Debug log for message content
+            logChat('Formatting message', {
+              id: msg.id,
+              message: msg.message,
+              content: msg.content,
+              finalContent: msg.message || msg.content
+            });
+            
+            return {
+              id: msg.id,
+              content: msg.message || msg.content, // Handle both message and content fields
+              sender_id: msg.sender_id,
+              receiver_id: msg.sender_type === 'client' ? data.professional_id : data.client_id,
+              created_at: msg.created_at,
+              read_at: msg.read ? new Date(msg.created_at).toISOString() : null
+            };
+          });
           
           setMessages(formattedMessages);
         }
-        
-        // Rest of your existing consultation code...
       } else {
         // Standard chat code
         const { data: profileData, error: profileError } = await supabase
@@ -192,7 +304,55 @@ export default function ChatConversation() {
         setOtherUser(safeProfileData);
 
         // Get regular messages
-        // Rest of your regular chat code...
+        const { data: messagesData, error: messagesError } = await supabase
+          .from('messages')
+          .select('*')
+          .or(`and(sender_id.eq.${user.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${user.id})`)
+          .order('created_at', { ascending: true });
+          
+        if (messagesError) {
+          logChat('Error fetching regular messages', messagesError);
+          console.error('Error fetching regular messages:', messagesError);
+          return;
+        }
+        
+        // Convert to proper Message format and ensure sorting
+        const formattedMessages = messagesData?.map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          sender_id: msg.sender_id,
+          receiver_id: msg.receiver_id,
+          created_at: msg.created_at,
+          read_at: msg.read_at
+        })) || [];
+        
+        // Sort messages by timestamp
+        formattedMessages.sort((a, b) => 
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        
+        logChat('Regular messages fetched', { 
+          count: formattedMessages.length,
+          firstMessage: formattedMessages.length > 0 ? formattedMessages[0].content : 'none'
+        });
+        
+        setMessages(formattedMessages);
+        
+        // Mark unread messages as read if we're the recipient
+        const unreadMessages = messagesData?.filter(
+          msg => msg.receiver_id === user.id && !msg.read_at
+        ) || [];
+        
+        if (unreadMessages.length > 0) {
+          logChat('Marking messages as read', { count: unreadMessages.length });
+          
+          for (const msg of unreadMessages) {
+            await supabase
+              .from('messages')
+              .update({ read_at: new Date().toISOString() })
+              .eq('id', msg.id);
+          }
+        }
       }
     } catch (error) {
       logChat('Error in fetchMessages', error);
@@ -217,6 +377,9 @@ export default function ChatConversation() {
       // Create a unique channel name
       const channelName = `chat_messages_${currentUserId}_${id}`;
       logChat('Setting up real-time subscription', { channelName, isConsultation });
+      
+      // First clean up any existing subscriptions to avoid duplicates
+      supabase.removeAllChannels();
 
       let channel;
       
@@ -256,23 +419,35 @@ export default function ChatConversation() {
                 eventType: payload.eventType,
                 messageId: payload.new?.id,
                 senderId: payload.new?.sender_id,
-                message: payload.new?.message?.substring(0, 20) + '...'
+                message: payload.new?.message,
+                content: payload.new?.content,
+                finalContent: payload.new?.message || payload.new?.content
               });
               
               // Format the message for our UI
               const newMessage = {
                 id: payload.new.id,
-                content: payload.new.message,
+                content: payload.new.message || payload.new.content, // Handle both message and content fields
                 sender_id: payload.new.sender_id,
                 receiver_id: 'consultation', // Placeholder
                 created_at: payload.new.created_at,
                 read_at: payload.new.read ? new Date().toISOString() : null
               };
               
-              // Add to messages if not already there
+              // Add to messages if not already there (avoid duplicates with temp messages)
               setMessages(prev => {
-                if (prev.some(m => m.id === newMessage.id)) {
-                  return prev;
+                // Check if we have this message or a temp version of it
+                if (prev.some(m => 
+                  m.id === newMessage.id || 
+                  (m.id.startsWith('temp-') && m.content === newMessage.content)
+                )) {
+                  // If we already have this message content in a temp message,
+                  // replace the temp message with the real one
+                  return prev.map(m => 
+                    (m.id.startsWith('temp-') && m.content === newMessage.content) 
+                      ? newMessage 
+                      : m
+                  );
                 }
                 
                 // Add the new message and sort by created_at
@@ -309,23 +484,40 @@ export default function ChatConversation() {
                 eventType: payload.eventType,
                 messageId: payload.new?.id,
                 senderId: payload.new?.sender_id,
-                receiverId: payload.new?.receiver_id
+                receiverId: payload.new?.receiver_id,
+                content: payload.new?.content
               });
               
               const newMessage = payload.new as Message;
               
               // Check if message already exists (to avoid duplicates)
               setMessages(prev => {
-                if (prev.some(m => m.id === newMessage.id || m.id === `temp-${newMessage.id}`)) {
-                  return prev;
+                // Check if we have this message or a temp version of it
+                if (prev.some(m => 
+                  m.id === newMessage.id || 
+                  (m.id.startsWith('temp-') && m.content === newMessage.content)
+                )) {
+                  // If we already have this message content in a temp message,
+                  // replace the temp message with the real one
+                  return prev.map(m => 
+                    (m.id.startsWith('temp-') && m.content === newMessage.content) 
+                      ? newMessage 
+                      : m
+                  );
                 }
-                return [...prev, newMessage];
+                
+                // Add new message and ensure proper sorting
+                const updatedMessages = [...prev, newMessage].sort((a, b) => 
+                  new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                );
+                
+                // Auto scroll for new messages
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 100);
+                
+                return updatedMessages;
               });
-
-              // Auto scroll for new messages
-              setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-              }, 100);
 
               // Mark message as read if we're the receiver
               if (newMessage.receiver_id === currentUserId) {
@@ -372,94 +564,244 @@ export default function ChatConversation() {
   }, [otherUser]);
 
   const sendMessage = async () => {
+    if (!newMessage.trim()) return;
+    
     try {
-      logChat('Sending message', { 
-        to: otherUser.id,
-        contentLength: newMessage.trim().length 
-      });
-
-      if (!newMessage.trim() || !currentUserId) {
-        logChat('Cannot send message', { 
-          hasContent: !!newMessage.trim(),
-          hasCurrentUser: !!currentUserId,
-          hasOtherUser: !!otherUser
-        });
-        return;
-      }
-
-      // Check if this is a consultation chat
-      const isConsultation = await isConsultationChat(id as string);
+      // Clear input and focus
+      const textToSend = newMessage;
+      setNewMessage('');
+      textInputRef.current?.focus();
       
-      if (isConsultation) {
-        logChat('Sending consultation message');
-        
-        // This is a consultation chat, use the special function
-        const result = await sendConsultationMessage(
-          currentUserId,
-          id as string,
-          newMessage.trim()
-        );
-        
-        if (!result.success) {
-          logChat('Error sending consultation message', result.error);
-          console.error('Error sending consultation message:', result.error);
-          return;
-        }
-        
-        logChat('Consultation message sent successfully', { messageId: result.messageId });
-        setNewMessage('');
+      // Get the user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('No user found');
         return;
       }
       
-      // If not a consultation chat, proceed with regular messaging
+      // Create a temporary message for immediate display
+      const tempId = `temp-${Date.now()}`;
       const tempMessage: Message = {
-        id: `temp-${Date.now()}`,
-        content: newMessage.trim(),
-        sender_id: currentUserId,
-        receiver_id: otherUser.id,
+        id: tempId,
+        content: textToSend,
+        sender_id: user.id,
+        receiver_id: otherUser?.id || '',
         created_at: new Date().toISOString(),
         read_at: null
       };
-
-      // Optimistically add message to UI
-      addMessageToList(tempMessage);
-      setNewMessage('');
-
-      try {
-        // Regular message sending logic
+      
+      // Add the temporary message to the UI immediately
+      setMessages(prev => [...prev, tempMessage]);
+      
+      // Scroll to the new message
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+      
+      if (isConsultationChatState) {
+        // CRITICAL FIX: Check BOTH is_active AND consultation status
         const { data, error } = await supabase
-          .from('messages')
-          .insert({
-            content: tempMessage.content,
-            sender_id: currentUserId,
-            receiver_id: otherUser.id,
-          })
-          .select()
+          .from('chats')
+          .select(`
+            is_active,
+            consultations:consultation_id(status)
+          `)
+          .eq('consultation_id', id)
           .single();
-
-        if (error) {
-          logChat('Error sending message', error);
-          // Remove the temporary message on error
-          setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
-          throw error;
-        }
-
-        const messageData = data as Message;
-        logChat('Message sent successfully', { messageId: messageData.id });
         
-        // Replace temp message with real one
-        setMessages(prev => prev.map(m => 
-          m.id === tempMessage.id ? messageData : m
-        ));
-      } catch (error) {
-        logChat('Error in sendMessage', error);
-        console.error('Error sending message:', error);
+        if (error) {
+          console.error('Error checking chat status:', error);
+          return;
+        }
+        
+        // Extract status from first array item
+        const consultationStatus = data?.consultations?.[0]?.status;
+        
+        // Check if consultation is ended
+        const isSessionEnded = 
+          data?.is_active === false || 
+          consultationStatus === 'completed';
+        
+        if (isSessionEnded) {
+          logChat('Cannot send message: consultation session is ended', {
+            is_active: data?.is_active,
+            consultation_status: consultationStatus
+          });
+          
+          // Remove the temporary message since we can't send it
+          setMessages(prev => prev.filter(m => m.id !== tempId));
+          
+          setIsChatActive(false); // Update UI state
+          Alert.alert(
+            'Session Ended',
+            'This consultation session has ended and is now read-only.'
+          );
+          return;
+        }
+        
+        // Send message in consultation
+        logChat('Sending consultation message');
+        const { success, messageId, error: sendError } = await sendConsultationMessage(
+          id as string,
+          user.id,
+          textToSend
+        );
+        
+        if (sendError || !success) {
+          console.error('Error sending consultation message:', sendError);
+          
+          // Remove the temporary message since sending failed
+          setMessages(prev => prev.filter(m => m.id !== tempId));
+          
+          Alert.alert('Error', 'Failed to send message');
+        } else {
+          logChat('Consultation message sent successfully', { messageId });
+          
+          // The real message will be added by the subscription
+          // Remove the temporary message to prevent duplicates
+          setTimeout(() => {
+            setMessages(prev => prev.filter(m => m.id !== tempId));
+          }, 1000); // Give the subscription time to receive the real message
+        }
+      } else {
+        // Regular message sending logic
+        try {
+          const { data, error } = await supabase
+            .from('messages')
+            .insert({
+              content: textToSend,
+              sender_id: user.id,
+              receiver_id: otherUser?.id,
+            })
+            .select()
+            .single();
+
+          if (error) {
+            console.error('Error sending message:', error);
+            
+            // Remove the temporary message since sending failed
+            setMessages(prev => prev.filter(m => m.id !== tempId));
+            
+            throw error;
+          }
+
+          console.log('Message sent successfully');
+          
+          // The real message will be added by the subscription
+          // Remove the temporary message to prevent duplicates
+          setTimeout(() => {
+            setMessages(prev => prev.filter(m => m.id !== tempId));
+          }, 1000); // Give the subscription time to receive the real message
+        } catch (error) {
+          console.error('Error in regular message sending:', error);
+          Alert.alert('Error', 'Failed to send message');
+        }
       }
     } catch (error) {
-      logChat('Unexpected error in sendMessage', error);
-      console.error('Unexpected error sending message:', error);
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message');
     }
   };
+
+  // Replace the handleEndSession function to not use the problematic endConsultationSession
+  const handleEndSession = async () => {
+    try {
+      // Check if user is a doctor
+      if (!isDoctor) {
+        Alert.alert('Not Authorized', 'Only doctors can end consultation sessions');
+        return;
+      }
+      
+      // Check if there is a selected chat
+      if (!selectedChat?.consultation_id) {
+        console.error('No consultation ID found');
+        return;
+      }
+      
+      // Use our updated endConsultationSession function
+      endConsultationSession();
+    } catch (error) {
+      console.error('Error in handleEndSession:', error);
+      Alert.alert('Error', 'An unexpected error occurred');
+    }
+  };
+
+  // Replace the endConsultationSession function with this implementation
+  const endConsultationSession = async () => {
+    try {
+      // First, check if this is a consultation chat
+      if (!selectedChat?.is_consultation || !selectedChat?.consultation_id) {
+        console.log('This is not a consultation chat or consultation_id is missing', selectedChat);
+        Alert.alert('Error', 'Could not identify this as a consultation chat.');
+        return;
+      }
+
+      console.log('Attempting to end consultation', {
+        chatId: selectedChat.id,
+        consultationId: selectedChat.consultation_id,
+        isConsultation: selectedChat.is_consultation
+      });
+
+      // Confirm with the user
+      Alert.alert(
+        "End Consultation",
+        "Are you sure you want to end this consultation? This will permanently delete all chat data.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel"
+          },
+          {
+            text: "End and Delete",
+            style: "destructive",
+            onPress: async () => {
+              setIsLoadingMessages(true);
+              
+              try {
+                console.log('Calling delete_consultation with ID:', selectedChat.consultation_id);
+                
+                // Call the function to delete the consultation and related data
+                const { data, error } = await supabase.rpc(
+                  'delete_consultation',
+                  { p_consultation_id: selectedChat.consultation_id }
+                );
+                
+                console.log('Delete consultation response:', { data, error });
+                
+                if (error) {
+                  console.error('Error deleting consultation:', error);
+                  Alert.alert('Error', 'Failed to delete consultation. Please try again.');
+                } else if (data && data.success) {
+                  console.log('Consultation deleted successfully:', data);
+                  Alert.alert('Success', 'Consultation has been ended and deleted.');
+                  
+                  // Navigate back to the chat list
+                  router.push('/(main)/chat');
+                } else {
+                  console.error('Unknown response when deleting consultation:', data);
+                  Alert.alert('Error', 'Received unexpected response. Please check if the consultation was deleted.');
+                }
+              } catch (err) {
+                console.error('Exception when deleting consultation:', err);
+                Alert.alert('Error', 'An unexpected error occurred while deleting the consultation.');
+              } finally {
+                setIsLoadingMessages(false);
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error in endConsultationSession:', error);
+      Alert.alert('Error', 'An unexpected error occurred.');
+    }
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchMessages();
+    setRefreshing(false);
+  }, []);
 
   if (loading) {
     return (
@@ -492,7 +834,7 @@ export default function ChatConversation() {
                   icon="arrow-left"
                   size={24}
                   iconColor={colors.TEXT.PRIMARY}
-                  onPress={() => router.back()}
+                  onPress={() => router.push('/(main)/chat')}
                 />
                 <Pressable 
                   style={styles.userInfo}
@@ -506,17 +848,38 @@ export default function ChatConversation() {
                     <Text variant="titleMedium" style={{ color: colors.TEXT.PRIMARY }}>
                       {otherUser.name || 'Anonymous'}
                     </Text>
-                    <Text variant="bodySmall" style={{ color: colors.TEXT.SECONDARY }}>
-                      @{otherUser.username || 'username'}
-                    </Text>
+                    {isConsultationChatState && (
+                      <Text variant="labelSmall" style={{ color: colors.TAB_BAR.ACTIVE }}>
+                        Medical Consultation
+                      </Text>
+                    )}
                   </View>
                 </Pressable>
-                <IconButton
-                  icon="dots-vertical"
-                  size={24}
-                  iconColor={colors.TEXT.PRIMARY}
-                  onPress={() => {/* Add menu options */}}
-                />
+
+                {/* Add menu button for doctors in consultation chats */}
+                {isConsultationChatState && isDoctor && (
+                  <Menu
+                    visible={isMenuVisible}
+                    onDismiss={() => setIsMenuVisible(false)}
+                    anchor={
+                      <IconButton
+                        icon="dots-vertical"
+                        size={24}
+                        iconColor={colors.TEXT.PRIMARY}
+                        onPress={() => setIsMenuVisible(true)}
+                      />
+                    }
+                  >
+                    <Menu.Item 
+                      onPress={() => {
+                        setIsMenuVisible(false);
+                        setIsConfirmDialogVisible(true);
+                      }} 
+                      title="End Session" 
+                      leadingIcon="exit-run"
+                    />
+                  </Menu>
+                )}
               </View>
             </Surface>
           ),
@@ -528,76 +891,169 @@ export default function ChatConversation() {
         style={styles.messagesContainer}
         contentContainerStyle={styles.messagesContent}
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.TAB_BAR.ACTIVE]}
+            tintColor={colors.TAB_BAR.ACTIVE}
+          />
+        }
       >
-        {messages.map((message, index) => (
-          <MotiView
-            key={message.id}
-            style={[
-              styles.messageWrapper,
-              message.sender_id === currentUserId ? styles.sentMessage : styles.receivedMessage,
-            ]}
-            from={{ opacity: 0, translateY: 20 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 300, delay: index * 50 }}
-          >
-            <Surface
+        {messages.map((message, index) => {
+          // Properly determine if message is from the current user
+          const isCurrentUserMessage = message.sender_id === currentUserId;
+          const isSystemMessage = message.sender_id === 'system';
+          const isConsultationMessage = isConsultationChatState;
+          
+          // Add debug info to help troubleshoot message display issues
+          if (index === 0) {
+            console.log('Message display debug:', {
+              currentUserId,
+              otherUserId,
+              messageFrom: message.sender_id?.substring(0, 8),
+              isCurrent: isCurrentUserMessage,
+              isConsultation: isConsultationChatState
+            });
+          }
+          
+          if (isSystemMessage) {
+            return (
+              <MotiView
+                key={message.id}
+                style={styles.systemMessageWrapper}
+                from={{ opacity: 0, translateY: 20 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ type: 'timing', duration: 300, delay: index * 50 }}
+              >
+                <Text style={[styles.systemMessageText, { color: colors.TEXT.SECONDARY }]}>
+                  {message.content}
+                </Text>
+              </MotiView>
+            );
+          }
+          
+          return (
+            <MotiView
+              key={message.id}
               style={[
-                styles.messageBubble,
-                message.sender_id === currentUserId ? styles.sentBubble : styles.receivedBubble,
-                {
-                  backgroundColor: message.sender_id === currentUserId 
-                    ? colors.TAB_BAR.ACTIVE 
-                    : colors.SURFACE,
-                },
+                styles.messageWrapper,
+                isCurrentUserMessage ? styles.sentMessage : styles.receivedMessage,
               ]}
+              from={{ opacity: 0, translateY: 20 }}
+              animate={{ opacity: 1, translateY: 0 }}
+              transition={{ type: 'timing', duration: 300, delay: index * 50 }}
             >
-              <Text
+              <Surface
                 style={[
-                  styles.messageText,
-                  { 
-                    color: message.sender_id === currentUserId 
-                      ? '#fff'
-                      : colors.TEXT.PRIMARY,
+                  styles.messageBubble,
+                  isCurrentUserMessage ? styles.sentBubble : styles.receivedBubble,
+                  {
+                    backgroundColor: isCurrentUserMessage 
+                      ? (isConsultationMessage ? '#4CAF50' : colors.TAB_BAR.ACTIVE)
+                      : (isConsultationMessage ? '#E8F5E9' : colors.SURFACE),
+                    borderWidth: isConsultationMessage ? 1 : 0,
+                    borderColor: isConsultationMessage ? '#4CAF50' : 'transparent',
                   },
                 ]}
               >
-                {message.content}
-              </Text>
-              <Text
-                style={[
-                  styles.messageTime,
-                  { 
-                    color: message.sender_id === currentUserId 
-                      ? 'rgba(255, 255, 255, 0.7)'
-                      : colors.TEXT.SECONDARY,
-                  },
-                ]}
-              >
-                {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
-              </Text>
-            </Surface>
-          </MotiView>
-        ))}
+                {isConsultationMessage && (
+                  <View style={styles.consultationIndicator}>
+                    <Text 
+                      style={[
+                        styles.consultationLabel, 
+                        { color: isCurrentUserMessage ? '#FFFFFF' : '#4CAF50' }
+                      ]}
+                    >
+                      {isCurrentUserMessage ? 'You (Medical)' : 'Medical'}
+                    </Text>
+                  </View>
+                )}
+                <Text
+                  style={[
+                    styles.messageText,
+                    { 
+                      color: isCurrentUserMessage 
+                        ? '#fff'
+                        : colors.TEXT.PRIMARY,
+                    },
+                  ]}
+                >
+                  {message.content}
+                </Text>
+                <Text
+                  style={[
+                    styles.messageTime,
+                    { 
+                      color: isCurrentUserMessage 
+                        ? 'rgba(255, 255, 255, 0.7)'
+                        : colors.TEXT.SECONDARY,
+                    },
+                  ]}
+                >
+                  {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                </Text>
+              </Surface>
+            </MotiView>
+          );
+        })}
       </ScrollView>
 
       <Surface style={[styles.inputContainer, { backgroundColor: colors.SURFACE }]}>
-        <TextInput
-          value={newMessage}
-          onChangeText={setNewMessage}
-          placeholder="Type a message..."
-          mode="flat"
-          multiline
-          style={[styles.input, { backgroundColor: colors.SURFACE }]}
-          right={
-            <TextInput.Icon
-              icon="send"
-              onPress={sendMessage}
-              disabled={!newMessage.trim()}
-              style={styles.sendButton}
-            />
-          }
-        />
+        <View style={styles.inputContainer}>
+          <TextInput
+            value={newMessage}
+            onChangeText={setNewMessage}
+            placeholder={isChatActive ? "Type a message..." : "This session has ended"}
+            placeholderTextColor={colors.TEXT.SECONDARY}
+            style={[
+              styles.input, 
+              { 
+                backgroundColor: colors.SURFACE,
+                color: colors.TEXT.PRIMARY,
+                opacity: isChatActive ? 1 : 0.6
+              }
+            ]}
+            multiline
+            editable={isChatActive}
+            ref={textInputRef}
+          />
+          <IconButton
+            icon="send"
+            size={24}
+            iconColor={colors.TAB_BAR.ACTIVE}
+            style={[
+              styles.sendButton,
+              { opacity: isChatActive ? 1 : 0.4 }
+            ]}
+            disabled={!isChatActive || !newMessage.trim()}
+            onPress={sendMessage}
+          />
+        </View>
       </Surface>
+
+      {/* Add confirmation dialog */}
+      <Portal>
+        <Dialog visible={isConfirmDialogVisible} onDismiss={() => setIsConfirmDialogVisible(false)}>
+          <Dialog.Title>End Consultation Session</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              Are you sure you want to end this consultation session? 
+              This will permanently delete all chat and consultation data.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setIsConfirmDialogVisible(false)}>Cancel</Button>
+            <Button 
+              onPress={handleEndSession} 
+              loading={sessionEndingLoading}
+              disabled={sessionEndingLoading}
+            >
+              End & Delete
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </KeyboardAvoidingView>
   );
 }
@@ -607,26 +1063,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 16,
+    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
   },
-  userInfo: {
+  headerContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: 8,
+  },
+  userInfo: {
+    flex: 1,
+    marginLeft: 12,
   },
   userTextInfo: {
     marginLeft: 12,
@@ -637,11 +1090,9 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     padding: 16,
-    paddingBottom: 32,
   },
   messageWrapper: {
     marginBottom: 8,
-    maxWidth: '80%',
   },
   sentMessage: {
     alignSelf: 'flex-end',
@@ -651,8 +1102,8 @@ const styles = StyleSheet.create({
   },
   messageBubble: {
     padding: 12,
-    borderRadius: 16,
-    elevation: 1,
+    borderRadius: 20,
+    maxWidth: '80%',
   },
   sentBubble: {
     borderTopRightRadius: 4,
@@ -667,18 +1118,46 @@ const styles = StyleSheet.create({
   messageTime: {
     fontSize: 12,
     marginTop: 4,
+    alignSelf: 'flex-end',
   },
   inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    paddingHorizontal: 16,
   },
   input: {
-    fontSize: 16,
+    flex: 1,
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     maxHeight: 120,
   },
   sendButton: {
-    alignSelf: 'flex-end',
-    marginBottom: 8,
+    marginLeft: 8,
+    borderRadius: 20,
+  },
+  systemMessageWrapper: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+    borderRadius: 16,
+    padding: 8,
+    paddingHorizontal: 12,
+    marginVertical: 8, 
+    maxWidth: '80%',
+  },
+  systemMessageText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    color: '#666',
+  },
+  consultationIndicator: {
+    marginBottom: 4,
+    opacity: 0.8,
+  },
+  consultationLabel: {
+    fontSize: 10,
+    fontWeight: '500',
   },
 }); 

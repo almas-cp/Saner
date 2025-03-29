@@ -31,6 +31,7 @@ type BreathingExercise = {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   duration: number; // in minutes
   imageUrl?: string;
+  includeMusic?: boolean;
 };
 
 // Predefined breathing exercises
@@ -85,6 +86,14 @@ const breathingExercises: BreathingExercise[] = [
     duration: 6,
     imageUrl: 'https://images.unsplash.com/photo-1552196563-55cd4e45efb3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fGhlYXJ0fGVufDB8fDB8fHww&auto=format&fit=crop&w=500&q=60'
   }
+];
+
+// Music tracks for therapy
+const musicTracks = [
+  { id: 1, name: 'Calm Meditation', description: 'Peaceful ambient tones to promote deep relaxation' },
+  { id: 2, name: 'Deep Relaxation', description: 'Slow, gentle melody to release tension and anxiety' },
+  { id: 3, name: 'Peaceful Harmony', description: 'Balanced tones to restore inner peace and emotional stability' }, 
+  { id: 4, name: 'Tranquil Mind', description: 'Soothing sounds to quiet the mind and enhance meditation' }
 ];
 
 export default function BreathIndex() {
@@ -154,7 +163,20 @@ export default function BreathIndex() {
       pathname: '/(main)/breath/exercise',
       params: {
         name: exercise.name,
-        pattern: exercise.pattern
+        pattern: exercise.pattern,
+        includeMusic: exercise.includeMusic ? 'true' : 'false'
+      }
+    });
+  };
+
+  const startMusicTherapy = (pattern: string, trackId: number) => {
+    router.push({
+      pathname: '/(main)/breath/exercise',
+      params: {
+        name: `${musicTracks[trackId-1].name} Therapy`,
+        pattern: pattern,
+        includeMusic: 'true',
+        selectedTrack: trackId.toString()
       }
     });
   };
@@ -291,6 +313,18 @@ export default function BreathIndex() {
                         </Chip>
                       ))}
                     </View>
+                    {exercise.includeMusic && (
+                      <View style={styles.musicIndicator}>
+                        <MaterialCommunityIcons 
+                          name="music-note" 
+                          size={16} 
+                          color={colors.TEXT.SECONDARY} 
+                        />
+                        <Text style={{ color: colors.TEXT.SECONDARY, fontSize: 12 }}>
+                          Includes Music Therapy
+                        </Text>
+                      </View>
+                    )}
                   </Card.Content>
                   <Card.Actions>
                     <Button 
@@ -305,6 +339,87 @@ export default function BreathIndex() {
                 </Card>
               </MotiView>
             ))}
+          </View>
+          
+          {/* Music Therapy Section */}
+          <Text style={[commonStyles.heading, { color: colors.TEXT.PRIMARY, marginTop: 24, marginBottom: 16 }]}>
+            Music Therapy
+          </Text>
+          
+          <View style={styles.musicTherapyContainer}>
+            <Card style={[styles.therapyInfoCard, { backgroundColor: colors.CARD }]}>
+              <Card.Content>
+                <Title style={{ color: colors.TEXT.PRIMARY }}>Enhance Your Practice</Title>
+                <Paragraph style={{ color: colors.TEXT.SECONDARY, marginTop: 8 }}>
+                  Combine soothing music with breathing techniques for enhanced relaxation and stress relief.
+                  Music therapy can help deepen your practice and create a more immersive experience.
+                </Paragraph>
+                
+                <View style={styles.benefitsRow}>
+                  <View style={styles.benefitItem}>
+                    <MaterialCommunityIcons name="brain" size={24} color={colors.TAB_BAR.ACTIVE} />
+                    <Text style={[styles.benefitText, { color: colors.TEXT.SECONDARY }]}>Reduces Stress</Text>
+                  </View>
+                  <View style={styles.benefitItem}>
+                    <MaterialCommunityIcons name="heart-pulse" size={24} color={colors.TAB_BAR.ACTIVE} />
+                    <Text style={[styles.benefitText, { color: colors.TEXT.SECONDARY }]}>Lowers Blood Pressure</Text>
+                  </View>
+                  <View style={styles.benefitItem}>
+                    <MaterialCommunityIcons name="sleep" size={24} color={colors.TAB_BAR.ACTIVE} />
+                    <Text style={[styles.benefitText, { color: colors.TEXT.SECONDARY }]}>Improves Sleep</Text>
+                  </View>
+                </View>
+              </Card.Content>
+            </Card>
+            
+            <Text style={[commonStyles.subheading, { color: colors.TEXT.PRIMARY, marginTop: 16, marginBottom: 8 }]}>
+              Choose a Music Therapy Session
+            </Text>
+            
+            <ScrollView 
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.musicTracksContainer}
+            >
+              {musicTracks.map((track) => (
+                <MotiView
+                  key={track.id}
+                  from={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: track.id * 100, type: 'timing' }}
+                >
+                  <Card 
+                    style={[styles.musicTrackCard, { backgroundColor: colors.CARD }]}
+                    onPress={() => startMusicTherapy('4-2-6-2', track.id)}
+                  >
+                    <Card.Content>
+                      <View style={styles.trackHeader}>
+                        <MaterialCommunityIcons name="music-note" size={28} color={colors.TAB_BAR.ACTIVE} />
+                        <Text style={[styles.trackNumber, { color: colors.TEXT.SECONDARY }]}>Track {track.id}</Text>
+                      </View>
+                      <Title style={{ color: colors.TEXT.PRIMARY, fontSize: 16, marginTop: 8 }}>{track.name}</Title>
+                      <Paragraph style={{ color: colors.TEXT.SECONDARY, fontSize: 12, marginTop: 4 }}>
+                        {track.description}
+                      </Paragraph>
+                      <View style={styles.patternContainer}>
+                        <MaterialCommunityIcons name="weather-windy" size={14} color={colors.TEXT.SECONDARY} />
+                        <Text style={{ color: colors.TEXT.SECONDARY, fontSize: 12, marginLeft: 4 }}>
+                          Pattern: 4 - 2 - 6 - 2
+                        </Text>
+                      </View>
+                      <Button 
+                        mode="contained" 
+                        style={[styles.startMusicButton, { backgroundColor: colors.TAB_BAR.ACTIVE }]}
+                        labelStyle={{ color: '#fff', fontSize: 12 }}
+                        onPress={() => startMusicTherapy('4-2-6-2', track.id)}
+                      >
+                        Start
+                      </Button>
+                    </Card.Content>
+                  </Card>
+                </MotiView>
+              ))}
+            </ScrollView>
           </View>
           
           {isAuthenticated && (
@@ -522,5 +637,68 @@ const styles = StyleSheet.create({
   },
   durationText: {
     fontSize: 14,
+  },
+  musicIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    backgroundColor: 'rgba(0,0,255,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  musicTherapyContainer: {
+    marginBottom: 24,
+  },
+  therapyInfoCard: {
+    marginBottom: 16,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  benefitsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    flexWrap: 'wrap',
+  },
+  benefitItem: {
+    alignItems: 'center',
+    width: '30%',
+    marginBottom: 12,
+  },
+  benefitText: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  musicTracksContainer: {
+    paddingVertical: 8,
+    paddingRight: 16,
+  },
+  musicTrackCard: {
+    width: 200,
+    marginRight: 12,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  trackHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  trackNumber: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  patternContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  startMusicButton: {
+    marginTop: 8,
+    paddingVertical: 2,
   },
 });

@@ -12,6 +12,27 @@ export const sendConsultationMessage = async (
   try {
     console.log(`[Consultation] Sending message to consultation ${consultationId}`);
     
+    // First, check if the chat is still active
+    const { data: chatData, error: chatError } = await supabase
+      .from('chats')
+      .select('is_active')
+      .eq('consultation_id', consultationId)
+      .maybeSingle();
+      
+    if (chatError) {
+      console.error('[Consultation] Error checking if chat is active:', chatError);
+      return { success: false, error: chatError.message };
+    }
+    
+    // If chat is explicitly set to inactive (ended session)
+    if (chatData?.is_active === false) {
+      console.log('[Consultation] Cannot send message - consultation session has ended');
+      return { 
+        success: false, 
+        error: 'This consultation session has ended. You cannot send new messages.' 
+      };
+    }
+    
     // Call the database function that handles consultation messages
     const { data, error } = await supabase.rpc('send_consultation_message', {
       p_sender_id: senderId,
@@ -130,5 +151,42 @@ export const getSenderType = async (
   } catch (error) {
     console.error('[Consultation] Error in getSenderType:', error);
     return null;
+  }
+};
+
+/**
+ * Ends a consultation session (doctors only)
+ * This marks the consultation as completed and adds a final system message
+ */
+export const endConsultationSession = async (
+  doctorId: string,
+  consultationId: string,
+  customMessage?: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    console.log(`[Consultation] Doctor ${doctorId} is ending consultation ${consultationId}`);
+    
+    const message = customMessage || 'The doctor has ended this consultation session. Thank you for using our service.';
+    
+    // Call the database function to end the session
+    const { data, error } = await supabase.rpc('end_consultation_session', {
+      p_consultation_id: consultationId,
+      p_doctor_id: doctorId,
+      p_end_message: message
+    });
+    
+    if (error) {
+      console.error('[Consultation] Error ending session:', error);
+      return { success: false, error: error.message };
+    }
+    
+    console.log('[Consultation] Session ended successfully:', data);
+    return { success: true };
+  } catch (error) {
+    console.error('[Consultation] Unexpected error ending session:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
   }
 }; 

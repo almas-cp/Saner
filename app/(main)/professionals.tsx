@@ -73,138 +73,10 @@ type ClientConsultation = {
 };
 
 // Sample data for medical professionals
-const sampleProfessionals: MedicalProfessional[] = [
-  {
-    id: '1',
-    name: 'Dr. Sarah Johnson',
-    title: 'MD, Psychiatrist',
-    specialty: 'psychiatrist',
-    experience: 12,
-    rating: 4.9,
-    consultations: 358,
-    availability: 'available',
-    profile_pic_url: 'https://randomuser.me/api/portraits/women/44.jpg',
-    bio: 'Specialized in anxiety disorders and depression with a focus on young adults. Combines medication management with therapeutic strategies.',
-    consultation_fee: 50,
-    verified: true
-  },
-  {
-    id: '2',
-    name: 'Dr. Michael Chen',
-    title: 'PhD, Clinical Psychologist',
-    specialty: 'psychologist',
-    experience: 8,
-    rating: 4.7,
-    consultations: 215,
-    availability: 'available',
-    profile_pic_url: 'https://randomuser.me/api/portraits/men/32.jpg',
-    bio: 'Expert in cognitive behavioral therapy with experience treating stress, panic disorders, and PTSD. Uses evidence-based approaches.',
-    consultation_fee: 40,
-    verified: true
-  },
-  {
-    id: '3',
-    name: 'Emma Rodriguez',
-    title: 'Licensed Therapist',
-    specialty: 'therapist',
-    experience: 5,
-    rating: 4.8,
-    consultations: 182,
-    availability: 'busy',
-    profile_pic_url: 'https://randomuser.me/api/portraits/women/68.jpg',
-    bio: 'Specializes in relationship counseling and family therapy. Creates personalized treatment plans focused on communication and emotional healing.',
-    consultation_fee: 35,
-    verified: true
-  },
-  {
-    id: '4',
-    name: 'Dr. James Wilson',
-    title: 'MD, Psychiatrist',
-    specialty: 'psychiatrist',
-    experience: 15,
-    rating: 4.9,
-    consultations: 420,
-    availability: 'offline',
-    profile_pic_url: 'https://randomuser.me/api/portraits/men/52.jpg',
-    bio: 'Board-certified psychiatrist with focus on mood disorders, ADHD, and substance abuse. Integrates holistic approaches with conventional treatments.',
-    consultation_fee: 55,
-    verified: true
-  },
-  {
-    id: '5',
-    name: 'Olivia Thompson',
-    title: 'Mental Health Counselor',
-    specialty: 'counselor',
-    experience: 3,
-    rating: 4.6,
-    consultations: 98,
-    availability: 'available',
-    profile_pic_url: 'https://randomuser.me/api/portraits/women/33.jpg',
-    bio: 'Specializes in helping young adults navigate life transitions, stress management, and self-esteem issues with a compassionate approach.',
-    consultation_fee: 30,
-    verified: false
-  },
-];
+const sampleProfessionals: MedicalProfessional[] = [];
 
 // Sample data for client consultations
-const sampleConsultations: ClientConsultation[] = [
-  {
-    id: '1',
-    client_id: 'c1',
-    client_name: 'John Smith',
-    client_username: 'johnsmith',
-    client_profile_pic: 'https://randomuser.me/api/portraits/men/1.jpg',
-    status: 'pending',
-    created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 mins ago
-    scheduled_for: new Date(Date.now() + 1000 * 60 * 60 * 2).toISOString(), // 2 hours from now
-    last_message: null,
-    last_message_time: null,
-    fee_paid: 40,
-    is_new: true
-  },
-  {
-    id: '2',
-    client_id: 'c2',
-    client_name: 'Emily Johnson',
-    client_username: 'emilyjohnson',
-    client_profile_pic: 'https://randomuser.me/api/portraits/women/2.jpg',
-    status: 'active',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
-    scheduled_for: null,
-    last_message: "I've been feeling anxious about my upcoming exams.",
-    last_message_time: new Date(Date.now() - 1000 * 60 * 5).toISOString(), // 5 mins ago
-    fee_paid: 35,
-    is_new: false
-  },
-  {
-    id: '3',
-    client_id: 'c3',
-    client_name: 'Robert Williams',
-    client_username: 'rwilliams',
-    client_profile_pic: 'https://randomuser.me/api/portraits/men/3.jpg',
-    status: 'completed',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), // 2 days ago
-    scheduled_for: null,
-    last_message: "Thank you so much for your help. I'll follow your advice.",
-    last_message_time: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
-    fee_paid: 45,
-    is_new: false
-  },
-  {
-    id: '4',
-    client_id: 'c4',
-    client_name: 'Sophia Garcia',
-    client_username: 'sophiagarcia',
-    client_profile_pic: 'https://randomuser.me/api/portraits/women/4.jpg',
-    status: 'pending',
-    created_at: new Date(Date.now() - 1000 * 60 * 10).toISOString(), // 10 mins ago
-    scheduled_for: new Date(Date.now() + 1000 * 60 * 60 * 6).toISOString(), // 6 hours from now
-    last_message: null,
-    last_message_time: null,
-    fee_paid: 30,
-    is_new: true
-  }
-];
+const sampleConsultations: ClientConsultation[] = [];
 
 export default function Professionals() {
   const { theme, colors } = useTheme();
@@ -213,12 +85,12 @@ export default function Professionals() {
   const isProfessionalMode = params.mode === 'professional';
   
   // States for normal user view (browsing professionals)
-  const [professionals, setProfessionals] = useState<MedicalProfessional[]>(sampleProfessionals);
-  const [filteredProfessionals, setFilteredProfessionals] = useState<MedicalProfessional[]>(sampleProfessionals);
+  const [professionals, setProfessionals] = useState<MedicalProfessional[]>([]);
+  const [filteredProfessionals, setFilteredProfessionals] = useState<MedicalProfessional[]>([]);
   
   // States for professional view (managing client consultations)
-  const [consultations, setConsultations] = useState<ClientConsultation[]>(sampleConsultations);
-  const [filteredConsultations, setFilteredConsultations] = useState<ClientConsultation[]>(sampleConsultations);
+  const [consultations, setConsultations] = useState<ClientConsultation[]>([]);
+  const [filteredConsultations, setFilteredConsultations] = useState<ClientConsultation[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -249,11 +121,9 @@ export default function Professionals() {
 
       if (!doctorProfiles || doctorProfiles.length === 0) {
         console.log('No doctors found in profiles');
-        // Fall back to sample data in development
-        if (process.env.NODE_ENV === 'development') {
-          setProfessionals(sampleProfessionals);
-          setFilteredProfessionals(sampleProfessionals);
-        }
+        // No fallback to sample data, just set empty arrays
+        setProfessionals([]);
+        setFilteredProfessionals([]);
         setLoading(false);
         return;
       }
@@ -301,11 +171,9 @@ export default function Professionals() {
     } catch (error) {
       console.error('Error fetching medical professionals:', error);
       
-      // Fall back to sample data in case of error, only in development
-      if (process.env.NODE_ENV === 'development') {
-        setProfessionals(sampleProfessionals);
-        setFilteredProfessionals(sampleProfessionals);
-      }
+      // No fallback to sample data, just set empty arrays
+      setProfessionals([]);
+      setFilteredProfessionals([]);
     } finally {
       setLoading(false);
     }
@@ -484,11 +352,9 @@ export default function Professionals() {
     } catch (error) {
       console.error('Error fetching consultations:', error);
       
-      // Fall back to sample data in development
-      if (process.env.NODE_ENV === 'development') {
-        setConsultations(sampleConsultations);
-        setFilteredConsultations(sampleConsultations);
-      }
+      // No fallback to sample data, just set empty arrays
+      setConsultations([]);
+      setFilteredConsultations([]);
     } finally {
       setLoading(false);
     }
@@ -689,138 +555,116 @@ export default function Professionals() {
     }
   };
 
+  // Toast notification helper
+  const showToast = (message: string) => {
+    alert(message); // Simple implementation using alert, can be replaced with a more sophisticated toast library
+  };
+
   // Accept or decline consultation request with enhanced error handling and logging
-  const handleConsultationRequest = async (consultationId: string, accept: boolean) => {
+  const handleConsultationRequest = async (consultationId: string, action: 'accept' | 'reject') => {
     try {
-      console.log(`${accept ? 'Accepting' : 'Declining'} consultation request: ${consultationId}`);
+      console.log(`${action === 'accept' ? 'Accepting' : 'Rejecting'} consultation request: ${consultationId}`);
       
-      const newStatus = accept ? 'active' as ConsultationStatus : 'cancelled' as ConsultationStatus;
-      
-      // Get current user
+      // Check if the user is authenticated
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.error('❌ No authenticated user');
-        alert('You must be logged in to perform this action');
+        console.error('User not authenticated');
+        showToast('You must be logged in to perform this action');
         return;
       }
       
-      // Retrieve the consultation to get client and professional IDs
-      const { data: consultationData, error: fetchError } = await supabase
+      // Get consultation details
+      const { data: consultation, error: consultError } = await supabase
         .from('consultations')
         .select('client_id, professional_id, fee_paid')
         .eq('id', consultationId)
         .single();
         
-      if (fetchError) {
-        console.error('❌ Error fetching consultation details:', fetchError);
-        alert('Failed to fetch consultation details. Please try again.');
+      if (consultError || !consultation) {
+        console.error('Error fetching consultation details:', consultError);
+        showToast('Unable to process request');
         return;
       }
       
-      console.log(`Consultation ${consultationId} details:`, consultationData);
+      console.log(`Consultation ${consultationId} details:`, consultation);
+      
+      // Verify the user is the professional for this consultation
+      if (consultation.professional_id !== user.id) {
+        console.error('User is not the professional for this consultation');
+        showToast('You are not authorized to perform this action');
+        return;
+      }
       
       // Update the consultation status
       const { error: updateError } = await supabase
         .from('consultations')
-        .update({
-          status: newStatus,
-          is_new: false
-        })
+        .update({ status: action === 'accept' ? 'active' : 'rejected' })
         .eq('id', consultationId);
         
       if (updateError) {
-        console.error('❌ Error updating consultation status:', updateError);
-        alert('Failed to update consultation status. Please try again.');
+        console.error('Error updating consultation status:', updateError);
+        showToast('Failed to update consultation status');
         return;
       }
       
-      console.log(`✅ Successfully updated consultation ${consultationId} status to ${newStatus}`);
+      console.log(`✅ Successfully updated consultation ${consultationId} status to ${action === 'accept' ? 'active' : 'rejected'}`);
       
-      // If accepting the consultation, create a chat room for it
-      if (accept) {
-        // Detailed inspection of consultation before attempting to create chat
-        const inspectionResults = await inspectConsultation(consultationId);
-        inspectionResults.details.forEach(detail => console.log(detail));
+      // If accepted, create a chat room and send initial message
+      if (action === 'accept') {
+        // Debug the consultation first
+        inspectConsultation(consultationId);
         
-        if (!inspectionResults.valid) {
-          console.error('❌ Consultation validation failed');
-          alert('There was an issue with this consultation. Chat room creation might fail.');
-          // Continue anyway to see if we can recover
-        }
-        
-        // Get profile details for both client and professional
+        // Get user profiles for names
         const { data: clientProfile, error: clientError } = await supabase
           .from('profiles')
-          .select('name, username')
-          .eq('id', consultationData.client_id)
+          .select('name')
+          .eq('id', consultation.client_id)
           .single();
           
         const { data: professionalProfile, error: profError } = await supabase
           .from('profiles')
-          .select('name, username')
-          .eq('id', consultationData.professional_id)
+          .select('name')
+          .eq('id', user.id)
           .single();
           
-        if (clientError || profError) {
-          console.error('❌ Error fetching profiles:', clientError || profError);
-          alert('Could not retrieve user profiles. The consultation was accepted but chat creation may fail.');
-        } else {
-          console.log(`✅ Successfully retrieved profiles`);
-          console.log(`Client: ${clientProfile.name}`);
-          console.log(`Professional: ${professionalProfile.name}`);
-          
-          // Use enhanced chat creation function
-          const { success, error } = await createConsultationChat(
-            consultationId,
-            consultationData.client_id,
-            consultationData.professional_id,
-            clientProfile.name,
-            professionalProfile.name,
-            consultationData.fee_paid
-          );
-          
-          if (!success) {
-            console.error('❌ Chat creation failed:', error);
-            alert('The consultation was accepted but chat room creation failed. Please try refreshing the app.');
-          } else if (error) {
-            console.warn('⚠️ Chat creation partially succeeded:', error);
-            alert('The consultation was accepted but there may be issues with the chat. Please check if the chat appears correctly.');
-          } else {
-            console.log('✅ Chat creation successful');
+        if (clientError || profError || !clientProfile || !professionalProfile) {
+          console.error('Error fetching user profiles:', clientError || profError);
+          showToast('Created consultation but couldn\'t create chat room');
+          return;
+        }
+        
+        // UPDATED: Use the create_unique_consultation_chat function
+        // This ensures each consultation gets a unique chat ID
+        const { data: chatResult, error: chatError } = await supabase.rpc(
+          'create_unique_consultation_chat',
+          {
+            p_consultation_id: consultationId,
+            p_client_id: consultation.client_id,
+            p_professional_id: user.id,
+            p_client_name: clientProfile.name || 'Client',
+            p_professional_name: professionalProfile.name || 'Doctor'
           }
+        );
+        
+        if (chatError) {
+          console.error('Error creating chat:', chatError);
+          showToast('Consultation accepted but failed to create chat room');
+        } else {
+          console.log('Chat creation result:', chatResult);
+          showToast('Consultation accepted and chat room created');
         }
-      }
-      
-      // If successful, update the local state
-      const updatedConsultations = consultations.map(consult => {
-        if (consult.id === consultationId) {
-          return {
-            ...consult,
-            status: newStatus,
-            is_new: false
-          };
-        }
-        return consult;
-      });
-      
-      setConsultations(updatedConsultations);
-      setFilteredConsultations(filterConsultations(updatedConsultations, searchQuery, consultationStatusFilter));
-      
-      // Alert user of success
-      if (accept) {
-        alert('Consultation accepted! You can now chat with the client.');
+        
+        // Diagnostic logging after processing
+        logConsultationStatus();
       } else {
-        alert('Consultation declined.');
+        showToast('Consultation request rejected');
       }
       
-      // Run diagnostic log to help debug
-      await logConsultationStatus();
-      
-      // Refresh data
-      onRefresh();
+      // Refresh consultations list
+      fetchConsultations();
     } catch (error) {
-      console.error('❌ Unexpected error handling consultation request:', error);
-      alert('An error occurred while processing your request. Please try again.');
+      console.error('Error in handleConsultationRequest:', error);
+      showToast('An error occurred');
     }
   };
 
@@ -1205,7 +1049,7 @@ export default function Professionals() {
                             <>
                               <Button
                                 mode="contained"
-                                onPress={() => handleConsultationRequest(consultation.id, true)}
+                                onPress={() => handleConsultationRequest(consultation.id, 'accept')}
                                 style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
                                 labelStyle={{ color: 'white', fontSize: 12 }}
                               >
@@ -1213,7 +1057,7 @@ export default function Professionals() {
                               </Button>
                               <Button
                                 mode="outlined"
-                                onPress={() => handleConsultationRequest(consultation.id, false)}
+                                onPress={() => handleConsultationRequest(consultation.id, 'reject')}
                                 style={[styles.actionButton, { borderColor: '#F44336' }]}
                                 textColor="#F44336"
                                 labelStyle={{ fontSize: 12 }}

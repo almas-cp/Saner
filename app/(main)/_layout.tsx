@@ -17,14 +17,14 @@ import * as SplashScreen from 'expo-splash-screen';
 const TAB_ICONS = {
   breath: 'weather-windy',
   discover: 'home',
-  write: 'pencil',
+  professionals: 'doctor',
   chat: 'chat',
   profile: 'account-circle-outline',
 } as const;
 
 const CustomTabBar = ({ state, descriptors, navigation, colors }: any) => {
   // Filter only the main tabs we want to show
-  const mainTabs = ['discover', 'breath', 'write', 'chat', 'profile'];
+  const mainTabs = ['discover', 'breath', 'professionals', 'chat', 'profile'];
   const visibleRoutes = state.routes.filter((route: any) => mainTabs.includes(route.name));
   const { theme } = useTheme();
 
@@ -275,7 +275,7 @@ export default function MainLayout() {
   // Check if we're on a protected page (any page except discover)
   const isOnProtectedPage = 
     pathname === '/breath' || 
-    pathname === '/write' || 
+    pathname === '/professionals' || 
     pathname === '/chat' || 
     pathname === '/profile' ||
     isOnChatDetail || 
@@ -605,7 +605,7 @@ export default function MainLayout() {
               }}
             />
             <Tabs.Screen
-              name="write"
+              name="professionals"
               options={{
                 headerShown: true
               }}
